@@ -2,16 +2,13 @@
   <div>
     <v-toolbar flat height="90">
       <v-spacer></v-spacer>
-      <v-btn v-if="!playing" outlined fab small color="light-blue" @click="skipTrack('prev')">
+      <v-btn outlined fab small color="light-blue" @click="rewind()">
         <v-icon>mdi-rewind</v-icon>
       </v-btn>
-      <v-btn v-else outlined fab small color="light-blue" @click="stopTrack()">
-        <v-icon>mdi-rewind</v-icon>
-      </v-btn>
-      <v-btn v-if="!playing" fab color="light-blue" @click="playTrack()">
+      <v-btn v-if="!isPlaying" fab color="light-blue" @click="playTrack()">
         <v-icon large>mdi-play</v-icon>
       </v-btn>
-      <v-btn v-else outlined fab color="light-blue" @click="pauseTrack">
+      <v-btn v-else outlined fab color="light-blue" @click="playTrack()">
         <v-icon>mdi-pause</v-icon>
       </v-btn>
       <v-btn outlined fab small color="light-blue" @click="skipTrack('next')">
@@ -19,9 +16,9 @@
       </v-btn>
       <v-spacer></v-spacer>
     </v-toolbar>
-    <v-toolbar flat height="40">
-      <v-progress-linear height="40" v-model="trackProgress" ></v-progress-linear>
-    </v-toolbar>
+    <div class="waveform-wrap">
+      <div id="waveform"></div>
+    </div>
     <v-toolbar dark dense>
       <v-spacer></v-spacer>
       <v-btn text icon @click="toggleMute">
@@ -48,56 +45,93 @@
   </div>
 </template>
 <script>
+import WaveSurfer from "wavesurfer.js";
+
 export default {
   props: {
     playing: Boolean,
     loop: Boolean,
     shuffle: Boolean,
-    progress: Number
+    track: Object
   },
   data: () => ({
     volume: 0.7,
-    muted: false
+    muted: false,
+    wavesurfer: null,
+    dirty: false
   }),
-  created: function() {
-    Howler.volume(this.volume);
+  mounted: function() {
+    if (!this.wavesurfer) {
+      this.createWaveSurfer();
+      if (this.track) {
+        this.loadTrack(this.track.url);
+      }
+      this.wavesurfer.on("ready", () => {
+        if(this.dirty) {
+          this.wavesurfer.play();
+        }
+      });
+
+      this.wavesurfer.on("error", () => {
+        console.warn(e);
+      });
+
+      this.wavesurfer.on("finish", () => {
+        this.skipTrack('next');
+      });
+    }
   },
   methods: {
-    playTrack(index) {
-      this.$emit("playtrack", index);
+    createWaveSurfer() {
+      this.wavesurfer = WaveSurfer.create({
+        container: "#waveform",
+        barWidth: 3
+      });
     },
-    pauseTrack() {
-      this.$emit("pausetrack");
+    loadTrack(track) {
+      this.wavesurfer.load(track);
     },
-    stopTrack() {
-      this.$emit("stoptrack");
+    playTrack() {
+      this.dirty = true;
+      this.wavesurfer.playPause();
+      this.$emit("playtrack", this.isPlaying);
     },
     skipTrack(direction) {
+      this.dirty = true;
       this.$emit("skiptrack", direction);
     },
-    updateVolume(volume) {
-      Howler.volume(volume);
+    rewind() {
+      this.dirty = true;
+      if (this.wavesurfer.getCurrentTime() < 3) {
+        this.skipTrack("prev");
+      } else {
+        this.wavesurfer.stop();
+        this.wavesurfer.play();
+      }
     },
-    toggleMute() {
-      Howler.mute(!this.muted);
-      this.muted = !this.muted;
-    },
-    toggleLoop() {
-      this.$emit("toggleloop", !this.loop);
-    },
-    toggleShuffle() {
-      this.$emit("toggleshuffle", !this.shuffle);
-    }
+    updateVolume(volume) {},
+    toggleMute() {},
+    toggleLoop() {},
+    toggleShuffle() {}
   },
   computed: {
-    trackProgress: {
-      get: function() {
-        return this.progress * 100;
-      },
-      set: function(newValue) {
-        this.$emit("updateseek", newValue);
-      }
+    isPlaying() {
+      if (!this.wavesurfer) return false;
+      return this.wavesurfer.isPlaying();
     }
+  },
+  watch: {
+    track: function(newTrack) {
+      this.dirty = true;
+      this.loadTrack(newTrack.url);
+    },
+    playing: function() {
+      if(!this.dirty) {
+        this.dirty = true;
+        this.loadTrack(this.track.url);
+      }
+      
+    },
   }
 };
 </script>
