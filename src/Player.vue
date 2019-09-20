@@ -4,10 +4,10 @@
     <v-content>
       <v-container :fluid="true">
         <v-row>
-          <v-col col="12" sm="12" md="6">
+          <v-col col="12" xs="12" sm="12" md="6" lg="6">
             <PlayerInfoPanel :trackInfo="getTrackInfo" />
           </v-col>
-          <v-col col="12" sm="12" md="6">
+          <v-col col="12" xs="12" sm="12" md="6" lg="6">
             <PlayerSearchBar :playlist="playlist" />
             <PlayerPlaylistPanel
               :playlist="playlist"
@@ -103,17 +103,9 @@ export default {
       let file = track.title.replace(/\s/g, "_");
       track.url = `./playlist/${file}.mp3`;
       track.howl = new Howl({
-        src: [`./playlist/${file}.mp3`],
-        onend: () => {
-          if (this.loop) {
-            this.play(this.index);
-          } else {
-            this.skip("next");
-          }
-        }
+        src: [`./playlist/${file}.mp3`]
       });
     });
-    console.log('dsdfsd', this.playlist);
   },
   methods: {
     selectTrack(track) {
@@ -144,7 +136,14 @@ export default {
     skip(direction) {
       let index = 0;
 
-      if (direction === "next") {
+      let lastIndex = this.playlist.length - 1;
+
+      if (this.shuffle) {
+        index = Math.round(Math.random() * lastIndex);
+        while (index === this.index) {
+          index = Math.round(Math.random() * lastIndex);
+        }
+      } else if (direction === "next") {
         index = this.index + 1;
         if (index >= this.playlist.length) {
           index = 0;

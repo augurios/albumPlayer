@@ -33,7 +33,6 @@ export default {
       this.$emit("selecttrack", track);
     },
     playTrack(index) {
-      console.log("play track", index);
       this.$emit("playtrack", index);
     },
     selectPlay(track, index) {

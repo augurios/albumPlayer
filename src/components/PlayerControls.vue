@@ -17,6 +17,9 @@
       <v-spacer></v-spacer>
     </v-toolbar>
     <div class="waveform-wrap">
+      <div id="equalizer">
+        <!-- Here be equalizer sliders -->
+      </div>
       <div id="waveform"></div>
     </div>
     <v-toolbar dark dense>
@@ -24,14 +27,14 @@
       <v-btn text icon @click="toggleMute">
         <template v-if="!this.muted">
           <v-icon v-if="this.volume >= 0.7">mdi-volume-high</v-icon>
-          <v-icon v-else-if="this.volume >= 0.5">mdi-volume-medium</v-icon>
+          <v-icon v-else-if="this.volume >= 0.3">mdi-volume-medium</v-icon>
           <v-icon v-else-if="this.volume > 0">mdi-volume-low</v-icon>
           <v-icon v-else>mdi-volume-off</v-icon>
         </template>
         <v-icon v-show="this.muted">mdi-volume-off</v-icon>
       </v-btn>
-      <v-slider v-model="volume" @input="updateVolume(volume)" max="1" step="0.1"></v-slider>
-      <span>{{this.volume * 100 + '%'}}</span>
+      <v-slider v-model="volume" @input="updateVolume(volume)" max="1" step="0.01"></v-slider>
+      <span>{{Math.trunc(this.volume * 100 )+ '%'}}</span>
       <v-spacer></v-spacer>
       <v-btn text icon @click="toggleLoop">
         <v-icon color="light-blue" v-if="this.loop">mdi-repeat-once</v-icon>
@@ -50,7 +53,6 @@ import WaveSurfer from "wavesurfer.js";
 export default {
   props: {
     playing: Boolean,
-    loop: Boolean,
     shuffle: Boolean,
     track: Object
   },
@@ -58,7 +60,8 @@ export default {
     volume: 0.7,
     muted: false,
     wavesurfer: null,
-    dirty: false
+    dirty: false,
+    loop: false
   }),
   mounted: function() {
     if (!this.wavesurfer) {
@@ -67,7 +70,9 @@ export default {
         this.loadTrack(this.track.url);
       }
       this.wavesurfer.on("ready", () => {
-        if(this.dirty) {
+        this.createEq();
+
+        if (this.dirty) {
           this.wavesurfer.play();
         }
       });
@@ -77,7 +82,11 @@ export default {
       });
 
       this.wavesurfer.on("finish", () => {
-        this.skipTrack('next');
+        if (this.loop) {
+          this.rewind();
+        } else {
+          this.skipTrack("next");
+        }
       });
     }
   },
@@ -88,13 +97,103 @@ export default {
         barWidth: 3
       });
     },
+    createEq() {
+      var EQ = [
+        {
+          f: 32,
+          type: "lowshelf"
+        },
+        {
+          f: 64,
+          type: "peaking"
+        },
+        {
+          f: 125,
+          type: "peaking"
+        },
+        {
+          f: 250,
+          type: "peaking"
+        },
+        {
+          f: 500,
+          type: "peaking"
+        },
+        {
+          f: 1000,
+          type: "peaking"
+        },
+        {
+          f: 2000,
+          type: "peaking"
+        },
+        {
+          f: 4000,
+          type: "peaking"
+        },
+        {
+          f: 8000,
+          type: "peaking"
+        },
+        {
+          f: 16000,
+          type: "highshelf"
+        }
+      ];
+
+      // Create filters
+      var filters = EQ.map(band => {
+        var filter = this.wavesurfer.backend.ac.createBiquadFilter();
+        filter.type = band.type;
+        filter.gain.value = 0;
+        filter.Q.value = 1;
+        filter.frequency.value = band.f;
+        return filter;
+      });
+
+      // Connect filters to wavesurfer
+      this.wavesurfer.backend.setFilters(filters);
+
+      // Bind filters to vertical range sliders
+      var container = document.querySelector("#equalizer");
+      while (container.firstChild) container.removeChild(container.firstChild);
+      filters.forEach(filter => {
+        var input = document.createElement("input");
+        this.wavesurfer.util.extend(input, {
+          type: "range",
+          min: -40,
+          max: 40,
+          value: 0,
+          title: filter.frequency.value
+        });
+        input.style.display = "inline-block";
+        input.setAttribute("orient", "vertical");
+        this.wavesurfer.util.style(input, {
+          webkitAppearance: "slider-vertical",
+          width: "50px",
+          height: "150px"
+        });
+        container.appendChild(input);
+
+        var onChange = function(e) {
+          filter.gain.value = ~~e.target.value;
+        };
+
+        input.addEventListener("input", onChange);
+        input.addEventListener("change", onChange);
+      });
+      // For debugging
+      this.wavesurfer.filters = filters;
+    },
     loadTrack(track) {
       this.wavesurfer.load(track);
     },
     playTrack() {
+      if (!this.dirty) {
+        this.$emit("playtrack", this.isPlaying);
+      }
       this.dirty = true;
       this.wavesurfer.playPause();
-      this.$emit("playtrack", this.isPlaying);
     },
     skipTrack(direction) {
       this.dirty = true;
@@ -109,10 +208,22 @@ export default {
         this.wavesurfer.play();
       }
     },
-    updateVolume(volume) {},
-    toggleMute() {},
-    toggleLoop() {},
-    toggleShuffle() {}
+    updateVolume(volume) {
+      this.volume = volume;
+      if (this.wavesurfer) {
+        this.wavesurfer.setVolume(volume);
+      }
+    },
+    toggleMute() {
+      this.muted = !this.muted;
+      this.wavesurfer.setMute(this.muted);
+    },
+    toggleLoop() {
+      this.loop = !this.loop;
+    },
+    toggleShuffle() {
+      this.$emit("toggleshuffle", !this.shuffle);
+    }
   },
   computed: {
     isPlaying() {
@@ -126,12 +237,11 @@ export default {
       this.loadTrack(newTrack.url);
     },
     playing: function() {
-      if(!this.dirty) {
+      if (!this.dirty) {
         this.dirty = true;
         this.loadTrack(this.track.url);
       }
-      
-    },
+    }
   }
 };
 </script>
