@@ -58,7 +58,6 @@
               </p>
               <div v-if="trackInfo.extendedTags">
                 <h6>MetaTags</h6>
-                <v-treeview :items="items"></v-treeview>
                 <v-treeview :items="getExtendedTags"></v-treeview>
               </div>
             </v-card-text>
@@ -140,17 +139,18 @@ export default {
       bottom: 0;
       width: 100%;
       background-attachment: fixed;
-      // filter: blur(4px);
+      filter: blur(4px);
       &.bg-1 {
         height: 56px;
         z-index: 2;
       }
       &.bg-2 {
-        // filter: initial;
+        filter: initial;
       }
       &.bg-3 {
         top: initial;
         height: 128px;
+        bottom: 89px;
       }
     }
     &-details {
@@ -168,7 +168,7 @@ export default {
         transform: translateX(-100vw);
       }
       .v-card {
-        padding-bottom: 210px
+        padding-bottom: 210px;
       }
     }
     &-placeholder {

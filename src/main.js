@@ -2,7 +2,6 @@ import Vue from 'vue'
 import Player from './Player.vue'
 import vuetify from './plugins/vuetify';
 import Vue2TouchEvents from 'vue2-touch-events'
-import {Howl, Howler} from 'howler';
 
 Vue.use(Vue2TouchEvents)
 
@@ -28,8 +27,6 @@ Vue.filter('minutes', (value) => {
 
 new Vue({
   vuetify,
-  Howl,
-  Howler,
   render: h => h(Player)
 }).$mount('#app')
 

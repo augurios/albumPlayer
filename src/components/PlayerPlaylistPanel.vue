@@ -16,8 +16,8 @@
             v-if="track.tags"
           >{{ index | numbers }} {{ track.tags.title }} - {{ track.tags.artist }}</v-list-item-title>
         </v-list-item-content>
-        <v-spacer></v-spacer>
-        {{ track.howl.duration() | minutes }}
+       <!--<v-spacer></v-spacer>
+         {{ track.howl.duration() | minutes }} -->
       </v-list-item>
     </v-list>
   </v-card>

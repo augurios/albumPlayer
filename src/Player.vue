@@ -79,7 +79,6 @@ import PlayerControls from "./components/PlayerControls";
 import PlayerInfoPanel from "./components/PlayerInfoPanel";
 import PlayerSearchBar from "./components/PlayerSearchBar";
 import jsmediatags from "./assets/jsmediatags.js";
-import * as fs from "fs-web";
 
 export default {
   name: "App",
@@ -158,15 +157,9 @@ export default {
     seek: 0
   }),
   created: function() {
-    // fs.readdir(`${window.location.origin}/playlist`).then(function(files) {
-    //   console.log("plalist files", files);
-    // });
     this.playlist.forEach(track => {
       let file = track.title.replace(/\s/g, "_");
       track.url = `./playlist/${file}.mp3`;
-      track.howl = new Howl({
-        src: [`./playlist/${file}.mp3`]
-      });
       jsmediatags.read(`${window.location.origin}/playlist/${file}.mp3`, {
         onSuccess: ({ tags }) => {
           track.tags = tags;
@@ -282,19 +275,6 @@ export default {
         return ((this.infoLoaded + 2) / this.playlist.length) * 100;
       }
     }
-  },
-  watch: {
-    playing(playing) {
-      this.seek = this.currentTrack.howl.seek();
-      let updateSeek;
-      if (playing) {
-        updateSeek = setInterval(() => {
-          this.seek = this.currentTrack.howl.seek();
-        }, 250);
-      } else {
-        clearInterval(updateSeek);
-      }
-    }
   }
 };
 </script>
@@ -307,9 +287,6 @@ export default {
   padding-top: 0 !important;
   height: 100%;
   overflow: hidden;
-  .v-content__wrap {
-    padding-bottom: 86px;
-  }
 }
 .playlist-panel {
   position: absolute;
