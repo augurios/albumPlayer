@@ -9,8 +9,11 @@
   },
   "dependencies": {
     "core-js": "^2.6.5",
+    "fs-web": "^1.0.1",
     "howler": "^2.1.2",
+    "music-metadata": "^4.6.0",
     "vue": "^2.6.10",
+    "vue2-touch-events": "^2.0.0",
     "vuetify": "^2.0.0",
     "wavesurfer.js": "^3.0.0"
   },

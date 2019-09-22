@@ -1,13 +1,16 @@
 <template>
   <v-app dark>
     <PlayerTitleBar />
-    <v-content>
-      <v-container :fluid="true">
+    <v-content class="main-content">
+      <v-container
+        :fluid="true"
+        v-if="this.listLoaded"
+        class="playlist-panel"
+        v-bind:class="{ active: playlistActive }"
+        v-touch:swipe.left="() => {this.playlistActive = false}"
+      >
         <v-row>
-          <v-col col="12" xs="12" sm="12" md="6" lg="6">
-            <PlayerInfoPanel :trackInfo="getTrackInfo" />
-          </v-col>
-          <v-col col="12" xs="12" sm="12" md="6" lg="6">
+          <v-col cols="12" sm="12" md="6" lg="6" style="padding-bottom: 48px;">
             <PlayerSearchBar :playlist="playlist" />
             <PlayerPlaylistPanel
               :playlist="playlist"
@@ -16,22 +19,55 @@
               @selecttrack="selectTrack"
               @playtrack="play"
             />
-            <PlayerControls
-              :track="currentTrack"
-              :selectedTrack="selectedTrack"
-              :loop="loop"
-              :shuffle="shuffle"
-              :playing="playing"
-              @playtrack="play"
-              @pausetrack="pause"
-              @stoptrack="stop"
-              @skiptrack="skip"
-              @toggleloop="toggleLoop"
-              @toggleshuffle="toggleShuffle"
-            />
           </v-col>
         </v-row>
       </v-container>
+      <v-container :fluid="true" fill-height v-else class="loader">
+        <v-layout row wrap>
+          <v-row justify="center">
+            <v-col cols="4" align-self="center">
+              <v-progress-circular
+                :rotate="360"
+                :size="100"
+                :width="15"
+                :value="getLoadPercent"
+                color="teal"
+              >{{ Math.trunc(getLoadPercent) }}</v-progress-circular>
+              <h5 class="text-center grey--text mt-2">Loading Playlist</h5>
+            </v-col>
+          </v-row>
+        </v-layout>
+      </v-container>
+      <PlayerInfoPanel :trackInfo="getTrackInfo" @openPlaylist="openPlaylist" />
+      <div class="playlist-switch">
+        <v-btn
+          color="light-blue"
+          @click="() => {this.playlistActive = false}"
+          v-if="playlistActive"
+          text
+          icon
+        >
+          <v-icon>mdi-format-list-numbered</v-icon>
+        </v-btn>
+        <v-btn color="blue-grey lighten-4" text icon @click="openPlaylist" v-else>
+          <v-icon>mdi-format-list-numbered</v-icon>
+        </v-btn>
+      </div>
+      <div class="player-holder">
+        <PlayerControls
+          :track="currentTrack"
+          :selectedTrack="selectedTrack"
+          :loop="loop"
+          :shuffle="shuffle"
+          :playing="playing"
+          @playtrack="play"
+          @pausetrack="pause"
+          @stoptrack="stop"
+          @skiptrack="skip"
+          @toggleloop="toggleLoop"
+          @toggleshuffle="toggleShuffle"
+        />
+      </div>
     </v-content>
   </v-app>
 </template>
@@ -42,6 +78,8 @@ import PlayerPlaylistPanel from "./components/PlayerPlaylistPanel";
 import PlayerControls from "./components/PlayerControls";
 import PlayerInfoPanel from "./components/PlayerInfoPanel";
 import PlayerSearchBar from "./components/PlayerSearchBar";
+import jsmediatags from "./assets/jsmediatags.js";
+import * as fs from "fs-web";
 
 export default {
   name: "App",
@@ -53,38 +91,60 @@ export default {
     PlayerSearchBar
   },
   data: () => ({
+    listLoaded: false,
+    infoLoaded: 0,
+    playlistActive: true,
     playlist: [
       {
-        title: "Dios del design",
-        artist: "Malaugurio Ft poizon",
+        title: "01. Alex & Chris - Deep Dream ",
         howl: null,
         url: null,
         display: true
       },
       {
-        title: "Dios del design 2",
-        artist: "Malaugurio Ft poizon",
+        title: "02. Alex & Chris - Rosemary ",
         howl: null,
         url: null,
         display: true
       },
       {
-        title: "Dios del design 3",
-        artist: "Malaugurio Ft poizon",
+        title: "03. Alex & Chris - Paradise ",
         howl: null,
         url: null,
         display: true
       },
       {
-        title: "Dios del design 4",
-        artist: "Malaugurio Ft poizon",
+        title: "04. Stefan Schnabel - Fashion Repo",
         howl: null,
         url: null,
         display: true
       },
       {
-        title: "Spiritual force",
-        artist: "Augusto Valerio",
+        title: "05. Stefan Schnabel - Turn the Light On  ",
+        howl: null,
+        url: null,
+        display: true
+      },
+      {
+        title: "06. Stefan Schnabel - Underground of Fashion ",
+        howl: null,
+        url: null,
+        display: true
+      },
+      {
+        title: "07. Alex & Chris - Digital Eclipse ",
+        howl: null,
+        url: null,
+        display: true
+      },
+      {
+        title: "08. Alex & Chris - Brothers ",
+        howl: null,
+        url: null,
+        display: true
+      },
+      {
+        title: "dios-del-design--malaugurio-ft-cajaeveneno",
         howl: null,
         url: null,
         display: true
@@ -95,15 +155,30 @@ export default {
     playing: false,
     loop: false,
     shuffle: false,
-    seek: 0,
-    loadedTrack: "./playlist/spiritual_force.mp3"
+    seek: 0
   }),
   created: function() {
+    // fs.readdir(`${window.location.origin}/playlist`).then(function(files) {
+    //   console.log("plalist files", files);
+    // });
     this.playlist.forEach(track => {
       let file = track.title.replace(/\s/g, "_");
       track.url = `./playlist/${file}.mp3`;
       track.howl = new Howl({
         src: [`./playlist/${file}.mp3`]
+      });
+      jsmediatags.read(`${window.location.origin}/playlist/${file}.mp3`, {
+        onSuccess: ({ tags }) => {
+          track.tags = tags;
+          this.infoLoaded++;
+          if (this.playlist.length === this.infoLoaded) {
+            this.listLoaded = true;
+          }
+        },
+        onError: function(error) {
+          this.infoLoaded++;
+          console.log(error);
+        }
       });
     });
   },
@@ -117,7 +192,7 @@ export default {
       );
 
       if (typeof index === "number") {
-        index = index;
+        this.index = index;
       } else if (this.selectedTrack) {
         index = selectedTrackIndex;
       } else {
@@ -126,6 +201,7 @@ export default {
       this.selectedTrack = this.playlist[index];
       this.playing = true;
       this.index = index;
+      this.playlistActive = false;
     },
     pause() {
       this.playing = false;
@@ -165,6 +241,9 @@ export default {
     },
     toggleShuffle(value) {
       this.shuffle = value;
+    },
+    openPlaylist() {
+      this.playlistActive = true;
     }
   },
   computed: {
@@ -172,18 +251,35 @@ export default {
       return this.playlist[this.index];
     },
     getTrackInfo() {
-      if (this.selectedTrack) {
-        let artist = this.selectedTrack.artist,
-          title = this.selectedTrack.title;
+      if (this.selectedTrack && this.selectedTrack.tags) {
+        const {
+          album,
+          artist,
+          comment,
+          genre,
+          picture,
+          title,
+          track
+        } = this.selectedTrack.tags;
+        const tags = { album, comment, genre, picture, track };
         return {
           artist,
-          title
+          title,
+          tags,
+          extendedTags: this.selectedTrack.tags
         };
       } else {
         return {
           artist: "select",
           title: "song"
         };
+      }
+    },
+    getLoadPercent() {
+      if (this.infoLoaded > 0) {
+        return (this.infoLoaded / this.playlist.length) * 100;
+      } else {
+        return ((this.infoLoaded + 2) / this.playlist.length) * 100;
       }
     }
   },
@@ -202,3 +298,46 @@ export default {
   }
 };
 </script>
+<style lang="scss">
+.loader {
+  position: absolute;
+  top: 0;
+}
+.main-content {
+  padding-top: 0 !important;
+  height: 100%;
+  overflow: hidden;
+  .v-content__wrap {
+    padding-bottom: 86px;
+  }
+}
+.playlist-panel {
+  position: absolute;
+  left: 0;
+  top: 42px;
+  transition: all 0.4s ease;
+  transform: translateX(-100%);
+  padding-bottom: 260px;
+  overflow: auto;
+  height: 100%;
+  z-index: 1;
+  &.active {
+    transform: translateX(0);
+  }
+}
+.player-holder {
+  position: fixed;
+  bottom: 0;
+  width: 100%;
+  z-index: 1;
+  box-shadow: 0px -1px 29px 24px #000000a3;
+  border-top: 1px solid rgba(67, 67, 67, 0.72);
+}
+.playlist-switch {
+  position: fixed;
+  left: 0;
+  top: calc(100vh - 255px);
+  transition: all 0.4s ease;
+  z-index: 10;
+}
+</style>

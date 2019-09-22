@@ -1,5 +1,5 @@
 <template>
-  <v-toolbar flat>
+  <v-toolbar flat class="pt-3">
     <v-text-field
     clearable 
     prepend-icon="mdi-search-web"

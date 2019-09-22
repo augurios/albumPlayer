@@ -1,8 +1,10 @@
 import Vue from 'vue'
 import Player from './Player.vue'
 import vuetify from './plugins/vuetify';
+import Vue2TouchEvents from 'vue2-touch-events'
+import {Howl, Howler} from 'howler';
 
-import {Howl, Howler} from 'howler'
+Vue.use(Vue2TouchEvents)
 
 Vue.config.productionTip = false
 

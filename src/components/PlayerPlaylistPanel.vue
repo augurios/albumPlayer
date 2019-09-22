@@ -12,7 +12,9 @@
           <v-icon large>mdi-play</v-icon>
         </v-btn>
         <v-list-item-content @click="selectTrack(track)" @dblclick="playTrack()">
-          <v-list-item-title>{{ index | numbers }} {{ track.artist }} - {{ track.title }}</v-list-item-title>
+          <v-list-item-title
+            v-if="track.tags"
+          >{{ index | numbers }} {{ track.tags.title }} - {{ track.tags.artist }}</v-list-item-title>
         </v-list-item-content>
         <v-spacer></v-spacer>
         {{ track.howl.duration() | minutes }}
@@ -26,7 +28,7 @@ export default {
   props: {
     playlist: Array,
     selectedTrack: Object,
-    currentTrack: Object,
+    currentTrack: Object
   },
   methods: {
     selectTrack(track) {
@@ -85,7 +87,6 @@ export default {
 .v-list-item.selected.selected.selected {
   background-color: orange !important;
   color: #333 !important;
-  
 }
 .even {
   background-color: #505050;
