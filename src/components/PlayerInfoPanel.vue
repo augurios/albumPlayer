@@ -192,6 +192,12 @@ export default {
       text-align: center;
       height: calc(100% - 473px);
       line-height: 0;
+      @media (min-width: 991px) {
+        width: 50vw;
+        left:15px;
+        margin-left: 0;
+        text-align: left;
+      }
       img {
         max-width: 100%;
         box-shadow: 1px 1px 2px #0000002e;

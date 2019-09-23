@@ -10,7 +10,7 @@
         v-touch:swipe.left="() => {this.playlistActive = false}"
       >
         <v-row>
-          <v-col cols="12" sm="12" md="6" lg="6" style="padding-bottom: 48px;">
+          <v-col cols="12" style="padding-bottom: 48px;">
             <PlayerSearchBar :playlist="playlist" />
             <PlayerPlaylistPanel
               :playlist="playlist"
@@ -25,7 +25,7 @@
       <v-container :fluid="true" fill-height v-else class="loader">
         <v-layout row wrap>
           <v-row justify="center">
-            <v-col cols="4" align-self="center">
+            <v-col cols="4" sm="2" align-self="center">
               <v-progress-circular
                 :rotate="360"
                 :size="100"
@@ -148,6 +148,13 @@ export default {
         url: null,
         display: true
       }
+      ,
+      {
+        title: "pajaros",
+        howl: null,
+        url: null,
+        display: true
+      }
     ],
     selectedTrack: null,
     index: 0,
@@ -163,21 +170,24 @@ export default {
       jsmediatags.read(`${window.location.origin}/playlist/${file}.mp3`, {
         onSuccess: ({ tags }) => {
           track.tags = tags;
-          this.infoLoaded++;
-          if (this.playlist.length === this.infoLoaded) {
-            setTimeout(() => {
-              this.listLoaded = true;
-            }, 700);
-          }
+          this.loaderStep()
         },
-        onError: function(error) {
-          this.infoLoaded++;
+        onError: (error) => {
+          this.loaderStep()
           console.log(error);
         }
       });
     });
   },
   methods: {
+    loaderStep(){
+       this.infoLoaded++;
+          if (this.playlist.length === this.infoLoaded) {
+            setTimeout(() => {
+              this.listLoaded = true;
+            }, 700);
+          }
+    },
     selectTrack(track) {
       this.selectedTrack = track;
     },
@@ -196,7 +206,9 @@ export default {
       this.selectedTrack = this.playlist[index];
       this.playing = true;
       this.index = index;
-      this.playlistActive = false;
+      if (window.innerWidth < 991) {
+        this.playlistActive = false;
+      }
     },
     pause() {
       this.playing = false;
@@ -285,6 +297,9 @@ export default {
   position: absolute;
   top: 0;
   padding-bottom: 219px;
+  .align-self-center {
+    text-align: center;
+  }
 }
 .main-content {
   padding-top: 0 !important;
@@ -299,12 +314,19 @@ export default {
   left: 0;
   top: 56px;
   padding-top: 0;
-  transition: all 0.4s ease;
+  transition: transform 0.4s ease, top 0.4s ease;
   transform: translateX(-100%);
   padding-bottom: 260px;
   overflow: auto;
   height: 100%;
   z-index: 1;
+  @media (min-width: 991px) {
+    left: initial;
+    right: 0;
+    width: 50vw;
+    max-width: 768px;
+    transform: translateX(100%);
+  }
   &.active {
     transform: translateX(0);
   }
