@@ -16,6 +16,7 @@
                   min="-40"
                   vertical
                   thumb-label
+                  color="teal lighten-2"
                   :label="getString(eqControl.f)"
                   @input="setFilter($event, index)"
                 ></v-slider>
@@ -42,6 +43,7 @@
                     @input="updateVolume(volume)"
                     max="1"
                     step="0.01"
+                    color="teal lighten-2"
                     thumb-label
                   ></v-slider>
                 </v-col>
@@ -62,8 +64,9 @@
           <span class="current">{{ times.current | minutes}}</span> /
           <span class="duration">{{ times.duration | minutes}}</span>
         </div>
+        <v-progress-linear indeterminate color="teal lighten-2" v-if="isLoading"></v-progress-linear>
         <v-btn text icon @click="toggleEq">
-          <v-icon color="light-blue" v-if="this.eqActive">mdi-equalizer</v-icon>
+          <v-icon color="teal lighten-2" v-if="this.eqActive">mdi-equalizer</v-icon>
           <v-icon color="blue-grey" v-else>mdi-equalizer</v-icon>
         </v-btn>
       </div>
@@ -75,26 +78,26 @@
         v-touch:swipe.left="()=>{this.skipTrack('next')}"
       >
         <v-btn text icon @click="toggleLoop">
-          <v-icon color="light-blue" v-if="this.loop">mdi-repeat-once</v-icon>
+          <v-icon color="teal lighten-2" v-if="this.loop">mdi-repeat-once</v-icon>
           <v-icon color="blue-grey" v-else>mdi-repeat-once</v-icon>
         </v-btn>
         <v-spacer></v-spacer>
-        <v-btn outlined fab small color="light-blue" @click="rewind()">
+        <v-btn outlined fab small color="teal lighten-2" @click="rewind()">
           <v-icon>mdi-rewind</v-icon>
         </v-btn>
-        <v-btn v-if="!isPlaying" fab color="light-blue" @click="playTrack()">
+        <v-btn v-if="!isPlaying" fab class="ml-2 mr-2" color="teal lighten-2" @click="playTrack()" :disabled="isLoading">
           <v-icon large>mdi-play</v-icon>
         </v-btn>
-        <v-btn v-else outlined fab color="light-blue" @click="playTrack()">
+        <v-btn v-else outlined fab class="ml-2 mr-2" color="teal lighten-2" @click="playTrack()">
           <v-icon>mdi-pause</v-icon>
         </v-btn>
-        <v-btn outlined fab small color="light-blue" @click="skipTrack('next')">
+        <v-btn outlined fab small color="teal lighten-2" @click="skipTrack('next')">
           <v-icon>mdi-fast-forward</v-icon>
         </v-btn>
         <v-spacer></v-spacer>
 
         <v-btn text icon @click="toggleShuffle">
-          <v-icon color="light-blue" v-if="this.shuffle">mdi-shuffle</v-icon>
+          <v-icon color="teal lighten-2" v-if="this.shuffle">mdi-shuffle</v-icon>
           <v-icon color="blue-grey" v-else>mdi-shuffle</v-icon>
         </v-btn>
       </v-toolbar>
@@ -170,9 +173,11 @@ export default {
     ],
     eqActive: false,
     times: {
-      current: "0",
+      current: 0,
       duration: "0"
-    }
+    },
+    isLoading: false,
+    updateSeek: null
   }),
   mounted: function() {
     if (!this.wavesurfer) {
@@ -181,8 +186,9 @@ export default {
         this.loadTrack(this.track.url);
       }
       this.wavesurfer.on("ready", () => {
+        this.isLoading = false;
         this.createEq();
-
+        this.times.duration = this.wavesurfer.getDuration();
         if (this.dirty) {
           this.wavesurfer.play();
         }
@@ -195,14 +201,14 @@ export default {
           this.skipTrack("next");
         }
       });
-      this.wavesurfer.on("audioprocess", () => {
-        this.times.duration = this.wavesurfer.getDuration();
-        this.times.current = this.wavesurfer.getCurrentTime();
+      this.wavesurfer.on("seek", () => {
+        this.setCurrentTime();
       });
     }
   },
   methods: {
     createWaveSurfer() {
+      this.isLoading = true;
       this.wavesurfer = WaveSurfer.create({
         container: "#waveform",
         barWidth: 3
@@ -222,6 +228,7 @@ export default {
     },
     loadTrack(track) {
       this.wavesurfer.load(track);
+      this.isLoading = true;
     },
     playTrack() {
       if (!this.dirty) {
@@ -269,6 +276,9 @@ export default {
     },
     getString(number) {
       return number.toString(10);
+    },
+    setCurrentTime() {
+      this.times.current = this.wavesurfer.getCurrentTime();
     }
   },
   computed: {
@@ -282,10 +292,17 @@ export default {
       this.dirty = true;
       this.loadTrack(newTrack.url);
     },
-    playing: function() {
+    isPlaying: function() {
       if (!this.dirty) {
         this.dirty = true;
         this.loadTrack(this.track.url);
+      }
+       if (this.isPlaying) {
+        this.updateSeek = setInterval(() => {
+          this.setCurrentTime();
+        }, 1000);
+      } else {
+        clearInterval(this.updateSeek);
       }
     }
   }
@@ -299,6 +316,7 @@ export default {
     bottom: 5px;
     right: 10px;
     z-index: 10;
+    text-shadow: 1px 1px 3px #00000069;
   }
   .times-display {
     position: absolute;
@@ -309,6 +327,10 @@ export default {
     padding: 3px 15px;
     border-radius: 4px;
     margin-left: -62px;
+  }
+  .v-progress-linear.theme--dark {
+    position: absolute;
+    bottom: 0;
   }
 }
 .player-controls {

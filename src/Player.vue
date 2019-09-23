@@ -31,8 +31,8 @@
                 :size="100"
                 :width="15"
                 :value="getLoadPercent"
-                color="teal"
-              >{{ Math.trunc(getLoadPercent) }}</v-progress-circular>
+                color="teal lighten-2"
+              ></v-progress-circular>
               <h5 class="text-center grey--text mt-2">Loading Playlist</h5>
             </v-col>
           </v-row>
@@ -41,7 +41,7 @@
       <PlayerInfoPanel :trackInfo="getTrackInfo" @openPlaylist="openPlaylist" />
       <div class="playlist-switch">
         <v-btn
-          color="light-blue"
+          color="teal lighten-2"
           @click="() => {this.playlistActive = false}"
           v-if="playlistActive"
           text
@@ -165,7 +165,9 @@ export default {
           track.tags = tags;
           this.infoLoaded++;
           if (this.playlist.length === this.infoLoaded) {
-            this.listLoaded = true;
+            setTimeout(() => {
+              this.listLoaded = true;
+            }, 700);
           }
         },
         onError: function(error) {
@@ -272,7 +274,7 @@ export default {
       if (this.infoLoaded > 0) {
         return (this.infoLoaded / this.playlist.length) * 100;
       } else {
-        return ((this.infoLoaded + 2) / this.playlist.length) * 100;
+        return ((this.infoLoaded * 2) / this.playlist.length) * 100;
       }
     }
   }
@@ -282,16 +284,21 @@ export default {
 .loader {
   position: absolute;
   top: 0;
+  padding-bottom: 219px;
 }
 .main-content {
   padding-top: 0 !important;
   height: 100%;
   overflow: hidden;
+  background-image: url("/images/logo.png");
+  background-size: 100%;
+  background-position: center calc(50% - 86px);
 }
 .playlist-panel {
   position: absolute;
   left: 0;
-  top: 42px;
+  top: 56px;
+  padding-top: 0;
   transition: all 0.4s ease;
   transform: translateX(-100%);
   padding-bottom: 260px;
@@ -303,7 +310,7 @@ export default {
   }
 }
 .player-holder {
-  position: fixed;
+  position: absolute;
   bottom: 0;
   width: 100%;
   z-index: 1;

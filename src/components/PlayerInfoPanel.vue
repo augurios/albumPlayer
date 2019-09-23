@@ -2,18 +2,12 @@
   <div class="song-info">
     <div
       class="song-info-tags"
-      v-if="trackInfo.tags"
+      :class="{active : trackInfo.tags}"
       v-touch:swipe.left="toggleDetails"
       v-touch:swipe.right="openPlaylist"
     >
-      <div
-        class="song-info-tags-bg"
-        v-for="(bg) in [1,2,3]"
-        :key="bg"
-        :class="'bg-' + bg"
-        :style="`background-image:url(${getImage})`"
-      ></div>
-      <div class="song-info-tags-labels">
+      <div class="song-info-tags-bg" :style="`background-image:url(${getImage})`"></div>
+      <div class="song-info-tags-labels" v-if="trackInfo.tags">
         <h6>Now Playing</h6>
         <h3>
           <v-icon>mdi-artist</v-icon>
@@ -28,9 +22,12 @@
           {{trackInfo.tags.album}}
         </h5>
       </div>
+      <div class="img-display">
+        <img :src="getImage" />
+      </div>
     </div>
     <div class="song-info-switch">
-      <v-btn color="light-blue" @click="toggleDetails" v-if="detailsActive" text icon>
+      <v-btn color="teal lighten-2" @click="toggleDetails" v-if="detailsActive" text icon>
         <v-icon>mdi-details</v-icon>
       </v-btn>
       <v-btn color="blue-grey lighten-4" text icon @click="toggleDetails" v-else>
@@ -98,10 +95,13 @@ export default {
   },
   computed: {
     getImage() {
-      let base64String = this.arrayBufferToBase64(
+     if(this.trackInfo.tags && this.trackInfo.tags.picture) {
+        let base64String = this.arrayBufferToBase64(
         this.trackInfo.tags.picture.data
       );
       return `data:${this.trackInfo.tags.picture.format};base64,${base64String}`;
+     } 
+     return `${window.location.origin}/images/logo.png`
     },
     getExtendedTags() {
       if (this.trackInfo.extendedTags) {
@@ -131,6 +131,11 @@ export default {
   &-tags {
     height: 100%;
     position: relative;
+    opacity: 0;
+    transition: all 1s ease;
+    &.active {
+      opacity: 1;
+    }
     &-bg {
       background-size: cover;
       background-position: center center;
@@ -140,18 +145,6 @@ export default {
       width: 100%;
       background-attachment: fixed;
       filter: blur(4px);
-      &.bg-1 {
-        height: 56px;
-        z-index: 2;
-      }
-      &.bg-2 {
-        filter: initial;
-      }
-      &.bg-3 {
-        top: initial;
-        height: 128px;
-        bottom: 89px;
-      }
     }
     &-details {
       padding: 15px;
@@ -168,7 +161,7 @@ export default {
         transform: translateX(-100vw);
       }
       .v-card {
-        padding-bottom: 210px;
+        margin-bottom: 158px;
       }
     }
     &-placeholder {
@@ -182,6 +175,28 @@ export default {
       top: 72px;
       left: 15px;
       text-shadow: 0px 0px 6px #000;
+      white-space: nowrap;
+      width: 100%;
+      padding-right: 30px;
+      * {
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+    }
+    .img-display {
+      position: absolute;
+      width: calc(100% - 42px);
+      bottom: 254px;
+      left: 50%;
+      margin-left: calc(-50% + 21px);
+      text-align: center;
+      height: calc(100% - 473px);
+      line-height: 0;
+      img {
+        max-width: 100%;
+        box-shadow: 1px 1px 2px #0000002e;
+        height: 100%;
+      }
     }
   }
 }
