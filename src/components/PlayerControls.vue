@@ -113,6 +113,20 @@
         </v-btn>
       </v-toolbar>
     </div>
+    <v-snackbar
+      v-model="snackbarError"
+      color="red"
+    >
+      {{ snackbarErrorText }}
+      <v-btn
+        color="black"
+        text
+        @click="snackbarError = false"
+
+      >
+        Close
+      </v-btn>
+    </v-snackbar>
   </div>
 </template>
 <script>
@@ -190,6 +204,8 @@ export default {
     },
     isLoading: false,
     updateSeek: null,
+    snackbarError: false,
+    snackbarErrorText: '',
   }),
   mounted() {
     if (!this.wavesurfer) {
@@ -216,6 +232,12 @@ export default {
       });
       this.wavesurfer.on('seek', () => {
         this.setCurrentTime();
+      });
+      this.wavesurfer.on('error', (e) => {
+        console.warn(e);
+        this.snackbarError = true;
+        this.snackbarErrorText = `${e}, File could be corrupted.`;
+        this.isLoading = false;
       });
     }
   },

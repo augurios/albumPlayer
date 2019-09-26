@@ -51,7 +51,7 @@
         <v-col cols="12">
           <v-card>
             <v-card-text>
-              <p>{{trackInfo.tags.comment.short_description}} {{trackInfo.tags.comment.text}}</p>
+              <p v-if="trackInfo.tags.comment">{{trackInfo.tags.comment.short_description}} {{trackInfo.tags.comment.text}}</p>
               <p>
                 <strong>Track:</strong>
                 {{trackInfo.tags.track}}
@@ -186,7 +186,7 @@ export default {
     }
     &-labels {
       position: absolute;
-      top: 72px;
+      top: 78px;
       left: 15px;
       text-shadow: 0px 0px 6px #000;
       white-space: nowrap;
@@ -226,8 +226,7 @@ export default {
         left: 15px;
         margin-left: 0;
         &.centered {
-              transform: translateX(50%);
-                  left: -7px;
+              transform: translateX(calc(50% - 7px));
         }
       }
       img {

@@ -1,6 +1,5 @@
 <template>
   <v-app dark>
-
     <PlayerTitleBar />
     <v-content class="main-content">
       <v-container
@@ -13,7 +12,7 @@
       >
         <v-row>
           <v-col cols="12" style="padding-bottom: 48px;">
-            <PlayerSearchBar :playlist="playlist" />
+            <PlayerSearchBar :playlist="playlist" @updateFolder="reloadPlaylist"/>
             <PlayerPlaylistPanel
               :playlist="playlist"
               :selectedTrack="selectedTrack"
@@ -35,13 +34,17 @@
                 :width="15"
                 :value="getLoadPercent"
                 color="teal lighten-2"
-              ></v-progress-circular>
+              ><strong>{{ getLoadPercent | percent }}</strong></v-progress-circular>
               <h5 class="text-center grey--text mt-2">Loading Playlist</h5>
             </v-col>
           </v-row>
         </v-layout>
       </v-container>
-      <PlayerInfoPanel :trackInfo="getTrackInfo" :playlistActive="playlistActive" @openPlaylist="openPlaylist" />
+      <PlayerInfoPanel
+        :trackInfo="getTrackInfo"
+        :playlistActive="playlistActive"
+        @openPlaylist="openPlaylist"
+      />
       <div class="playlist-switch">
         <v-btn
           color="teal lighten-2"
@@ -85,6 +88,18 @@ import PlayerInfoPanel from './components/PlayerInfoPanel.vue';
 import PlayerSearchBar from './components/PlayerSearchBar.vue';
 import jsmediatags from './plugins/jsmediatags';
 
+const initialState = () => ({
+  dataLoaded: false,
+  listLoaded: false,
+  playListReady: false,
+  infoToLoad: null,
+  infoLoaded: 0,
+  selectedTrack: null,
+  index: -0,
+  playlist: [],
+  playing: false,
+});
+
 export default {
   name: 'App',
   components: {
@@ -95,14 +110,9 @@ export default {
     PlayerSearchBar,
   },
   data: () => ({
+    ...initialState(),
     initializing: true,
-    infoToLoad: null,
-    dataLoaded: false,
-    playListReady: false,
-    listLoaded: false,
-    infoLoaded: 0,
     playlistActive: true,
-    playlist: [],
     supportedFormats: {
       au: { type: 'audio/basic' },
       snd: { type: 'audio/basic' },
@@ -124,48 +134,48 @@ export default {
       flac: { type: 'audio/flac' },
     },
     selectedTrack: null,
-    index: -0,
-    playing: false,
     loop: false,
     shuffle: false,
     seek: 0,
+    loadDir: '../albumPlayer/public/playlist/',
   }),
   created() {
-    const electronFs = remote.require('fs');
-    // const loadDir = '/Users/augustovalerio/Sites/myplayer/albumPlayer/public/playlist/';
-    const loadDir = '/Volumes/ExternalMem/deephouse/BT_Deep_House_Top_100_December_2015/';
-
-    electronFs.readdir(loadDir, (err, files) => {
-      if (err) {
-        console.log('err', err);
-      }
-      this.initializing = false;
-      this.infoToLoad = files.length - 1;
-      files.forEach((file, index) => {
-        const fileArray = file.split('.');
-        const fileFormat = fileArray.slice(-1)[0];
-        if (this.supportedFormats[fileFormat] && file.charAt(0) !== '.') {
-          electronFs.readFile(loadDir + file, (error, data) => {
-            if (error) throw error;
-            const fileObj = {
-              title: file,
-              path: loadDir + file,
-              file: data,
-              display: true,
-              indexId: index,
-              mime: this.supportedFormats[fileFormat],
-            };
-            this.playlist.push(fileObj);
-            this.loaderStep();
-          });
-        } else {
-          this.loaderStep();
-        }
-      });
-    });
-    console.log(remote.app.getVersion(), remote, window, electronFs);
+    this.scanDirectory();
   },
   methods: {
+    scanDirectory() {
+      const electronFs = remote.require('fs');
+
+      electronFs.readdir(this.loadDir, (err, files) => {
+        if (err) {
+          console.log('err', err);
+        }
+        this.initializing = false;
+        this.infoToLoad = files.length - 1;
+        files.forEach((file, index) => {
+          const fileArray = file.split('.');
+          const fileFormat = fileArray.slice(-1)[0];
+          if (this.supportedFormats[fileFormat] && file.charAt(0) !== '.') {
+            electronFs.readFile(this.loadDir + file, (error, data) => {
+              if (error) throw error;
+              const fileObj = {
+                title: file,
+                path: this.loadDir + file,
+                file: data,
+                display: true,
+                indexId: index,
+                mime: this.supportedFormats[fileFormat],
+              };
+              this.playlist.push(fileObj);
+              this.loaderStep();
+            });
+          } else {
+            this.loaderStep();
+          }
+        });
+      });
+      console.log(remote.app.getVersion(), remote, window, electronFs);
+    },
     loadPlaylist() {
       console.log('loadp', this.playlist);
       let playlistCount = 1;
@@ -175,14 +185,11 @@ export default {
           onSuccess: ({ tags }) => {
             this.playlist[index].tags = tags;
             playlistCount += 1;
-
-            if (playlistCount === this.playlist.length) {
-              this.listLoaded = true;
-              this.playListReady = true;
-            }
+            this.checkCount(playlistCount);
           },
           onError: ({ info, type }) => {
             playlistCount += 1;
+            this.checkCount(playlistCount);
             console.error(`Error Reading Tags: ${info}, Type:${type}`);
           },
         });
@@ -224,6 +231,15 @@ export default {
       if (window.innerWidth < 991) {
         this.playlistActive = false;
       }
+    },
+    checkCount(playlistCount) {
+      if (playlistCount === this.playlist.length) {
+        this.listLoaded = true;
+        this.playListReady = true;
+      }
+    },
+    resetPlaylist() {
+      Object.assign(this.$data, initialState());
     },
     pause() {
       this.playing = false;
@@ -276,6 +292,12 @@ export default {
       }
       return 0;
     },
+    reloadPlaylist(newPath) {
+      console.log('new path', newPath);
+      this.loadDir = `${newPath[0]}/`;
+      this.resetPlaylist();
+      this.scanDirectory();
+    },
   },
   computed: {
     currentTrack() {
@@ -319,10 +341,7 @@ export default {
     },
     getLoadPercent() {
       if (!this.initializing) {
-        if (this.infoLoaded > 0) {
-          return (this.infoLoaded / this.infoToLoad) * 100;
-        }
-        return ((this.infoLoaded * 2) / this.infoToLoad) * 100;
+        return (this.infoLoaded / this.infoToLoad) * 100;
       }
       return 0;
     },
@@ -379,7 +398,7 @@ export default {
   bottom: 0;
   width: 100%;
   z-index: 1;
-  box-shadow: 0px -1px 29px 24px #000000a3;
+  box-shadow: 0px -1px 29px 24px #0000005e;
   border-top: 1px solid rgba(67, 67, 67, 0.72);
   backdrop-filter: blur(4px);
 }

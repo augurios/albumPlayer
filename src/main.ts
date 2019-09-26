@@ -10,7 +10,9 @@ Vue.use(Vue2TouchEvents);
 
 Vue.config.productionTip = false;
 
-Vue.filter('numbers', (value) => {
+Vue.filter('percent', (value: number) => `${Math.trunc(value)}%`);
+
+Vue.filter('numbers', (value: number) => {
   const number = value + 1;
   if (number < 10) {
     return `0${number}.`;
@@ -18,7 +20,7 @@ Vue.filter('numbers', (value) => {
   return `${number}.`;
 });
 
-Vue.filter('minutes', (value) => {
+Vue.filter('minutes', (value: string | number) => {
   if (!value || typeof value !== 'number') return '00:00';
   let min = parseInt(value / 60);
   let sec = parseInt(value % 60);
