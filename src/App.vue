@@ -1,12 +1,13 @@
 <template>
   <v-app dark>
+
     <PlayerTitleBar />
     <v-content class="main-content">
-      
       <v-container
         :fluid="true"
         v-if="this.listLoaded"
         class="playlist-panel"
+        id="playlist-panel"
         v-bind:class="{ active: playlistActive }"
         v-touch:swipe.left="() => {this.playlistActive = false}"
       >
@@ -17,6 +18,7 @@
               :playlist="playlist"
               :selectedTrack="selectedTrack"
               :currentTrack="currentTrack"
+              :playing="playing"
               @selecttrack="selectTrack"
               @playtrack="play"
             />
@@ -39,7 +41,7 @@
           </v-row>
         </v-layout>
       </v-container>
-      <PlayerInfoPanel :trackInfo="getTrackInfo" @openPlaylist="openPlaylist" />
+      <PlayerInfoPanel :trackInfo="getTrackInfo" :playlistActive="playlistActive" @openPlaylist="openPlaylist" />
       <div class="playlist-switch">
         <v-btn
           color="teal lighten-2"
@@ -67,6 +69,7 @@
           @skiptrack="skip"
           @toggleloop="toggleLoop"
           @toggleshuffle="toggleShuffle"
+          @selecttrack="selectTrack"
         />
       </div>
     </v-content>
@@ -74,139 +77,150 @@
 </template>
 
 <script>
-import PlayerTitleBar from "./components/ToolBar";
-import PlayerPlaylistPanel from "./components/PlayerPlaylistPanel";
-import PlayerControls from "./components/PlayerControls";
-import PlayerInfoPanel from "./components/PlayerInfoPanel";
-import PlayerSearchBar from "./components/PlayerSearchBar";
-import jsmediatags from "./plugins/jsmediatags.js";
+import { remote } from 'electron';
+import PlayerTitleBar from './components/ToolBar.vue';
+import PlayerPlaylistPanel from './components/PlayerPlaylistPanel.vue';
+import PlayerControls from './components/PlayerControls.vue';
+import PlayerInfoPanel from './components/PlayerInfoPanel.vue';
+import PlayerSearchBar from './components/PlayerSearchBar.vue';
+import jsmediatags from './plugins/jsmediatags';
 
 export default {
-  name: "App",
+  name: 'App',
   components: {
     PlayerTitleBar,
     PlayerPlaylistPanel,
     PlayerControls,
     PlayerInfoPanel,
-    PlayerSearchBar
+    PlayerSearchBar,
   },
   data: () => ({
+    initializing: true,
+    infoToLoad: null,
+    dataLoaded: false,
+    playListReady: false,
     listLoaded: false,
     infoLoaded: 0,
     playlistActive: true,
-    playlist: [
-      {
-        title: "01. Alex & Chris - Deep Dream ",
-        howl: null,
-        url: null,
-        display: true
-      },
-      {
-        title: "02. Alex & Chris - Rosemary ",
-        howl: null,
-        url: null,
-        display: true
-      },
-      {
-        title: "03. Alex & Chris - Paradise ",
-        howl: null,
-        url: null,
-        display: true
-      },
-      {
-        title: "04. Stefan Schnabel - Fashion Repo",
-        howl: null,
-        url: null,
-        display: true
-      },
-      {
-        title: "05. Stefan Schnabel - Turn the Light On  ",
-        howl: null,
-        url: null,
-        display: true
-      },
-      {
-        title: "06. Stefan Schnabel - Underground of Fashion ",
-        howl: null,
-        url: null,
-        display: true
-      },
-      {
-        title: "07. Alex & Chris - Digital Eclipse ",
-        howl: null,
-        url: null,
-        display: true
-      },
-      {
-        title: "08. Alex & Chris - Brothers ",
-        howl: null,
-        url: null,
-        display: true
-      },
-      {
-        title: "dios-del-design--malaugurio-ft-cajaeveneno",
-        howl: null,
-        url: null,
-        display: true
-      }
-      ,
-      {
-        title: "pajaros",
-        howl: null,
-        url: null,
-        display: true
-      }
-    ],
+    playlist: [],
+    supportedFormats: {
+      au: { type: 'audio/basic' },
+      snd: { type: 'audio/basic' },
+      pmc: { type: 'auido/L24' },
+      mid: { type: 'audio/mid' },
+      rmi: { type: 'audio/mid' },
+      mp3: { type: 'audio/mpeg' },
+      mp4: { type: 'audio/mp4' },
+      aif: { type: 'audio/x-aiff' },
+      aifc: { type: 'audio/x-aiff' },
+      aiff: { type: 'audio/x-aiff' },
+      m3u: { type: 'audio/x-mpegurl' },
+      ra: { type: 'audio/vnd.rn-realaudio' },
+      ram: { type: 'audio/vnd.rn-realaudio' },
+      Ogg: { type: 'audio/ogg' },
+      Vorbis: { type: 'audio/vorbis' },
+      wav: { type: 'audio/vnd.wav' },
+      opus: { type: 'audio/ogg' },
+      flac: { type: 'audio/flac' },
+    },
     selectedTrack: null,
-    index: 0,
+    index: -0,
     playing: false,
     loop: false,
     shuffle: false,
-    seek: 0
+    seek: 0,
   }),
-  created: function() {
-    this.playlist.forEach(track => {
-      let file = track.title.replace(/\s/g, "_");
-      track.url = `./playlist/${file}.mp3`;
-      jsmediatags.read(`${window.location.origin}/playlist/${file}.mp3`, {
-        onSuccess: ({ tags }) => {
-          track.tags = tags;
-          this.loaderStep()
-        },
-        onError: (error) => {
-          this.loaderStep()
-          console.log(error);
+  created() {
+    const electronFs = remote.require('fs');
+    // const loadDir = '/Users/augustovalerio/Sites/myplayer/albumPlayer/public/playlist/';
+    const loadDir = '/Volumes/ExternalMem/deephouse/BT_Deep_House_Top_100_December_2015/';
+
+    electronFs.readdir(loadDir, (err, files) => {
+      if (err) {
+        console.log('err', err);
+      }
+      this.initializing = false;
+      this.infoToLoad = files.length - 1;
+      files.forEach((file, index) => {
+        const fileArray = file.split('.');
+        const fileFormat = fileArray.slice(-1)[0];
+        if (this.supportedFormats[fileFormat] && file.charAt(0) !== '.') {
+          electronFs.readFile(loadDir + file, (error, data) => {
+            if (error) throw error;
+            const fileObj = {
+              title: file,
+              path: loadDir + file,
+              file: data,
+              display: true,
+              indexId: index,
+              mime: this.supportedFormats[fileFormat],
+            };
+            this.playlist.push(fileObj);
+            this.loaderStep();
+          });
+        } else {
+          this.loaderStep();
         }
       });
     });
+    console.log(remote.app.getVersion(), remote, window, electronFs);
   },
   methods: {
-    loaderStep(){
-       this.infoLoaded++;
-          if (this.playlist.length === this.infoLoaded) {
-            setTimeout(() => {
+    loadPlaylist() {
+      console.log('loadp', this.playlist);
+      let playlistCount = 1;
+      this.newPlaylist = [];
+      this.playlist.forEach((track, index) => {
+        jsmediatags.read(track.file, {
+          onSuccess: ({ tags }) => {
+            this.playlist[index].tags = tags;
+            playlistCount += 1;
+
+            if (playlistCount === this.playlist.length) {
               this.listLoaded = true;
-            }, 700);
+              this.playListReady = true;
+            }
+          },
+          onError: ({ info, type }) => {
+            playlistCount += 1;
+            console.error(`Error Reading Tags: ${info}, Type:${type}`);
+          },
+        });
+      });
+      console.log('playlist', this.playlist);
+    },
+    loaderStep() {
+      this.infoLoaded += 1;
+      if (this.infoToLoad === this.infoLoaded) {
+        this.playlist.sort(this.compare);
+        setTimeout(() => {
+          if (!this.dataLoaded) {
+            this.loadPlaylist();
+            this.dataLoaded = true;
           }
+        }, 700);
+      }
     },
     selectTrack(track) {
       this.selectedTrack = track;
     },
     play(index) {
-      let selectedTrackIndex = this.playlist.findIndex(
-        track => track === this.selectedTrack
+      let localIndex = index;
+      const selectedTrackIndex = this.playlist.findIndex(
+        track => track === this.selectedTrack,
       );
 
-      if (typeof index === "number") {
-        this.index = index;
+      if (typeof index === 'number') {
+        this.index = localIndex;
       } else if (this.selectedTrack) {
-        index = selectedTrackIndex;
+        localIndex = selectedTrackIndex;
       } else {
-        index = this.index;
+        localIndex = this.index;
       }
+      this.selectedTrack = {};
       this.selectedTrack = this.playlist[index];
       this.playing = true;
-      this.index = index;
+      this.index = localIndex;
       if (window.innerWidth < 991) {
         this.playlistActive = false;
       }
@@ -220,14 +234,14 @@ export default {
     skip(direction) {
       let index = 0;
 
-      let lastIndex = this.playlist.length - 1;
+      const lastIndex = this.playlist.length - 1;
 
       if (this.shuffle) {
         index = Math.round(Math.random() * lastIndex);
         while (index === this.index) {
           index = Math.round(Math.random() * lastIndex);
         }
-      } else if (direction === "next") {
+      } else if (direction === 'next') {
         index = this.index + 1;
         if (index >= this.playlist.length) {
           index = 0;
@@ -252,7 +266,16 @@ export default {
     },
     openPlaylist() {
       this.playlistActive = true;
-    }
+    },
+    compare(a, b) {
+      if (a.indexId < b.indexId) {
+        return -1;
+      }
+      if (a.indexId > b.indexId) {
+        return 1;
+      }
+      return 0;
+    },
   },
   computed: {
     currentTrack() {
@@ -267,33 +290,52 @@ export default {
           genre,
           picture,
           title,
-          track
+          track,
         } = this.selectedTrack.tags;
-        const tags = { album, comment, genre, picture, track };
+        const tags = {
+          album,
+          comment,
+          genre,
+          picture,
+          track,
+        };
         return {
           artist,
           title,
           tags,
-          extendedTags: this.selectedTrack.tags
-        };
-      } else {
-        return {
-          artist: "select",
-          title: "song"
+          extendedTags: this.selectedTrack.tags,
         };
       }
+      if (this.selectedTrack && this.selectedTrack.title) {
+        return {
+          title: this.selectedTrack.title,
+          tags: null,
+        };
+      }
+      return {
+        tags: null,
+        title: null,
+      };
     },
     getLoadPercent() {
-      if (this.infoLoaded > 0) {
-        return (this.infoLoaded / this.playlist.length) * 100;
-      } else {
-        return ((this.infoLoaded * 2) / this.playlist.length) * 100;
+      if (!this.initializing) {
+        if (this.infoLoaded > 0) {
+          return (this.infoLoaded / this.infoToLoad) * 100;
+        }
+        return ((this.infoLoaded * 2) / this.infoToLoad) * 100;
       }
-    }
-  }
+      return 0;
+    },
+  },
 };
 </script>
 <style lang="scss">
+*::-webkit-scrollbar {
+  display: none;
+}
+.theme--dark.v-application {
+  background: #30303063 !important;
+}
 .loader {
   position: absolute;
   top: 0;
@@ -339,6 +381,7 @@ export default {
   z-index: 1;
   box-shadow: 0px -1px 29px 24px #000000a3;
   border-top: 1px solid rgba(67, 67, 67, 0.72);
+  backdrop-filter: blur(4px);
 }
 .playlist-switch {
   position: fixed;

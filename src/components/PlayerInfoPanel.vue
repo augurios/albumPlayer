@@ -2,14 +2,18 @@
   <div class="song-info">
     <div
       class="song-info-tags"
-      :class="{active : trackInfo.tags}"
+      :class="{active : trackInfo}"
       v-touch:swipe.left="toggleDetails"
       v-touch:swipe.right="openPlaylist"
     >
-      <div class="song-info-tags-bg" :style="`background-image:url(${getImage})`"></div>
-      <div class="song-info-tags-labels" v-if="trackInfo.tags">
+      <div
+        class="song-info-tags-bg"
+        :style="`background-image:url(${getImage})`"
+        v-if="trackInfo.tags"
+      ></div>
+      <div class="song-info-tags-labels" v-if="trackInfo.title" :class="[{centered: !playlistActive}]">
         <h6>Now Playing</h6>
-        <h3>
+        <h3 v-if="trackInfo.tags">
           <v-icon>mdi-artist</v-icon>
           {{ trackInfo.artist }}
         </h3>
@@ -17,12 +21,15 @@
           <v-icon>mdi-subtitles-outline</v-icon>
           {{ trackInfo.title }}
         </h1>
-        <h5>
+        <h5 v-if="trackInfo.tags">
           <v-icon small>mdi-album</v-icon>
           {{trackInfo.tags.album}}
         </h5>
       </div>
-      <div class="img-display">
+      <div class="song-info-tags-labels" v-else>
+        <h5>Welcome! Select or Play a Track</h5>
+      </div>
+      <div class="img-display" v-if="trackInfo.title" :class="[{centered: !playlistActive}]">
         <img :src="getImage" />
       </div>
     </div>
@@ -64,23 +71,24 @@
     </div>
   </div>
 </template>
- 
+
 <script>
 export default {
   props: {
-    trackInfo: Object
+    trackInfo: Object,
+    playlistActive: Boolean,
   },
   data() {
     return {
-      detailsActive: false
+      detailsActive: false,
     };
   },
   methods: {
     arrayBufferToBase64(buffer) {
-      let binary = "";
-      let bytes = new Uint8Array(buffer);
-      let len = bytes.byteLength;
-      for (let i = 0; i < len; i++) {
+      let binary = '';
+      const bytes = new Uint8Array(buffer);
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i += 1) {
         binary += String.fromCharCode(bytes[i]);
       }
       return window.btoa(binary);
@@ -90,39 +98,45 @@ export default {
     },
     openPlaylist() {
       this.detailsActive = false;
-      this.$emit("openPlaylist");
-    }
+      this.$emit('openPlaylist');
+    },
   },
   computed: {
     getImage() {
-     if(this.trackInfo.tags && this.trackInfo.tags.picture) {
-        let base64String = this.arrayBufferToBase64(
-        this.trackInfo.tags.picture.data
-      );
-      return `data:${this.trackInfo.tags.picture.format};base64,${base64String}`;
-     } 
-     return `${window.location.origin}/images/logo.png`
+      if (
+        this.trackInfo
+        && this.trackInfo.tags
+        && this.trackInfo.tags.picture
+      ) {
+        const base64String = this.arrayBufferToBase64(
+          this.trackInfo.tags.picture.data,
+        );
+        return `data:${this.trackInfo.tags.picture.format};base64,${base64String}`;
+      }
+      return `${window.location.origin}/images/logo.png`;
     },
     getExtendedTags() {
       if (this.trackInfo.extendedTags) {
-        let objectArray = Object.values(this.trackInfo.extendedTags);
-        let tagsArray = [];
-        objectArray.forEach(element => {
-          if (typeof element === "object" && element.description) {
-            const { id, size, description, data } = element;
+        const objectArray = Object.values(this.trackInfo.extendedTags);
+        const tagsArray = [];
+        objectArray.forEach((element) => {
+          if (typeof element === 'object' && element.description) {
+            const {
+              id, size, description, data,
+            } = element;
             tagsArray.push({
               id,
               size,
               name: description,
-              children: [{ name: data }]
+              children: [{ name: data }],
             });
           }
         });
         return tagsArray;
       }
       return [];
-    }
-  }
+    },
+  },
 };
 </script>
 <style lang="scss">
@@ -143,8 +157,8 @@ export default {
       top: 0;
       bottom: 0;
       width: 100%;
-      background-attachment: fixed;
-      filter: blur(4px);
+      filter: blur(1px);
+      opacity: 0.6;
     }
     &-details {
       padding: 15px;
@@ -176,11 +190,24 @@ export default {
       left: 15px;
       text-shadow: 0px 0px 6px #000;
       white-space: nowrap;
-      width: 100%;
+      width: calc(100% - 30px);
       padding-right: 30px;
+      background: #0000008c;
+      padding: 8px;
+      backdrop-filter: blur(14px);
+      border-radius: 6px;
+      box-shadow: 1px 1px 2px #0000002e;
+      transform: translateX(0%);
+      transition: transform 0.3s ease;
       * {
         overflow: hidden;
         text-overflow: ellipsis;
+      }
+      @media (min-width: 991px) {
+        width: 48%;
+        &.centered {
+              transform: translateX(50%);
+        }
       }
     }
     .img-display {
@@ -192,16 +219,24 @@ export default {
       text-align: center;
       height: calc(100% - 473px);
       line-height: 0;
+      transform: translateX(0%);
+      transition: transform 0.3s ease;
       @media (min-width: 991px) {
         width: 50vw;
-        left:15px;
+        left: 15px;
         margin-left: 0;
-        text-align: left;
+        &.centered {
+              transform: translateX(50%);
+                  left: -7px;
+        }
       }
       img {
         max-width: 100%;
+        min-width: 64px;
+        max-height: 100%;
+        min-height: 64px;
         box-shadow: 1px 1px 2px #0000002e;
-        height: 100%;
+        background-color: #424242;
       }
     }
   }

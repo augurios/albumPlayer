@@ -1,5 +1,5 @@
 <template>
-  <v-app-bar app>
+  <v-app-bar app >
     <v-toolbar-title class="headline text-uppercase">
       <img src="images/logo_transparent.png" alt class="logo" />
     </v-toolbar-title>
@@ -14,10 +14,10 @@
 export default {
   data() {
     return {
-      appName: "IMP",
-      appSlogan: "101"
+      appName: 'IMP',
+      appSlogan: '101',
     };
-  }
+  },
 };
 </script>
 <style lang="scss" scoped>
@@ -25,7 +25,9 @@ export default {
   width: 120px;
   margin-top: 7px;
 }
-.v-toolbar.theme--dark.v-sheet {
+.v-toolbar.v-sheet {
+  -webkit-app-region: drag;
   background-color: #424242dc;
+  backdrop-filter: blur(10px);
 }
 </style>

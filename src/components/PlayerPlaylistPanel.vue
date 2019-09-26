@@ -5,19 +5,26 @@
         v-for="(track, index) in playlist"
         :key="track.title"
         v-show="track.display"
-        :class="[{selected: track === selectedTrack}, {active: track === currentTrack}, {even: index % 2 == 0}]"
+        :class="[
+        {selected: track === selectedTrack},
+        {active: track === currentTrack},
+        {even: index % 2 == 0}]"
+        :id="`song-item-${track.indexId}`"
         v-ripple
       >
-        <v-btn color="teal lighten-2" @click="selectPlay(track,index)" v-if="track != currentTrack">
+        <v-btn color="teal lighten-2" @click="selectPlay(track,index)" v-if="!currentMark(track)">
           <v-icon large>mdi-play</v-icon>
         </v-btn>
         <v-btn text class="playing-btn" v-else>
           <v-icon large>mdi-speaker-wireless</v-icon>
         </v-btn>
-        <v-list-item-content @click="selectTrack(track)" @dblclick="playTrack()">
-          <v-list-item-title v-if="track.tags">
+        <v-list-item-content @click="selectTrack(track)" @dblclick="playTrack(index, track)">
+          <v-list-item-title>
             <img :src="getImage(track)" />
-            {{ index | numbers }} {{ track.tags.title }} - {{ track.tags.artist }}
+            <span
+              v-if="track.tags"
+            >{{ index | numbers }} {{ track.tags.title }} - {{ track.tags.artist }}</span>
+            <span v-else>{{ index | numbers }} {{ track.title }}</span>
           </v-list-item-title>
         </v-list-item-content>
         <!--<v-spacer></v-spacer>
@@ -26,42 +33,86 @@
     </v-list>
   </v-card>
 </template>
- 
+
 <script>
 export default {
   props: {
     playlist: Array,
     selectedTrack: Object,
-    currentTrack: Object
+    currentTrack: Object,
+    playing: Boolean,
   },
   methods: {
     selectTrack(track) {
-      this.$emit("selecttrack", track);
+      this.$emit('selecttrack', track);
     },
-    playTrack(index) {
-      this.$emit("playtrack", index);
+    playTrack(index, track) {
+      this.$emit('playtrack', index);
+      this.initiateScroll(track);
     },
     selectPlay(track, index) {
       this.selectTrack(track);
-      this.playTrack(index);
+      this.playTrack(index, track);
     },
     arrayBufferToBase64(buffer) {
-      let binary = "";
-      let bytes = new Uint8Array(buffer);
-      let len = bytes.byteLength;
-      for (let i = 0; i < len; i++) {
+      let binary = '';
+      const bytes = new Uint8Array(buffer);
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i += 1) {
         binary += String.fromCharCode(bytes[i]);
       }
       return window.btoa(binary);
     },
     getImage(track) {
       if (track && track.tags && track.tags.picture) {
-        let base64String = this.arrayBufferToBase64(track.tags.picture.data);
+        const base64String = this.arrayBufferToBase64(track.tags.picture.data);
         return `data:${track.tags.picture.format};base64,${base64String}`;
       }
-      return `/images/logo.png`;
-    }
-  }
+      return '/images/icon_placerholder.png';
+    },
+    currentMark(track) {
+      if (track === this.currentTrack && this.playing) {
+        return true;
+      }
+      return false;
+    },
+    easeInOutQuad(t, b, c, d) {
+      t /= d / 2;
+      if (t < 1) return (c / 2) * t * t + b;
+      t--;
+      return (-c / 2) * (t * (t - 2) - 1) + b;
+    },
+    scrollTo(element, to, duration) {
+      const start = element.scrollTop;
+      const change = to - start;
+      let currentTime = 0;
+      const increment = 20;
+
+      const animateScroll = () => {
+        currentTime += increment;
+        const val = this.easeInOutQuad(currentTime, start, change, duration);
+        element.scrollTop = val;
+        if (currentTime < duration) {
+          setTimeout(animateScroll, increment);
+        }
+      };
+      animateScroll();
+    },
+    initiateScroll(track) {
+      const elem = document.getElementById(`song-item-${track.indexId}`);
+      const topPos = elem.offsetTop;
+      this.scrollTo(
+        document.getElementById('playlist-panel'),
+        topPos + 64,
+        600,
+      );
+    },
+  },
+  watch: {
+    currentTrack(newTrack) {
+      this.initiateScroll(newTrack);
+    },
+  },
 };
 </script>
 <style scoped>
@@ -72,27 +123,49 @@ export default {
   position: relative;
   overflow: hidden;
 }
-.playlist .v-list-item.theme--dark:after,
-.playlist .v-list-item.theme--dark:before  {
+.playlist .v-list-item:after,
+.playlist .v-list-item:before {
   content: "";
   height: 1px;
   width: 100%;
   position: absolute;
   z-index: 20;
+  opacity: 1 !important;
 }
 
-.playlist .v-list-item.theme--dark:before {
-  height: 1px;
-  width: 100%;
-  position: absolute;
+.playlist .v-list-item:before {
   top: 0px;
-  background: #ffffff0a;
-  
+  background: #ffffff1f;
 }
 
-.playlist .v-list-item.theme--dark:after {
+.playlist .v-list-item:after {
   bottom: 0px;
-  background: #0000001c;
+  background: #00000038;
+}
+
+.playlist .v-list-item__content {
+  padding: 22px 0;
+}
+
+.playlist .v-list-item__content:before,
+.playlist .v-list-item__content:after {
+  content: "";
+  width: 1px;
+  position: absolute;
+  z-index: 20;
+  opacity: 1 !important;
+  background: #ffffff1f;
+  height: 100%;
+}
+
+.playlist .v-list-item__content:before {
+  left: 0;
+}
+
+.playlist .v-list-item__content:after {
+  right: 0;
+  background: #00000021;
+  z-index: 100;
 }
 
 .playlist .v-list-item .v-btn,
@@ -118,7 +191,11 @@ export default {
   position: absolute;
   top: 0;
   left: 0;
-  opacity: 0.7;
+  opacity: 0.6;
+}
+
+.playlist .v-list-item.selected img {
+  background: #000;
 }
 
 .playlist .v-list-item .v-list-item__title {
