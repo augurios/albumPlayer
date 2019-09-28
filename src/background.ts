@@ -1,6 +1,8 @@
 'use strict';
 
-import { app, protocol, BrowserWindow } from 'electron';
+import {
+  app, protocol, BrowserWindow, globalShortcut,
+} from 'electron';
 import {
   createProtocol,
   installVueDevtools,
@@ -79,12 +81,26 @@ app.on('ready', async () => {
     // Electron will not launch with Devtools extensions installed on Windows 10 with dark mode
     // If you are not using Windows 10 dark mode, you may uncomment these lines
     // In addition, if the linked issue is closed, you can upgrade electron and uncomment these lines
-    try {
-      await installVueDevtools();
-    } catch (e) {
-      console.error('Vue Devtools failed to install:', e.toString());
-    }
+    // try {
+    //   await installVueDevtools();
+    // } catch (e) {
+    //   console.error('Vue Devtools failed to install:', e.toString());
+    // }
   }
+
+  globalShortcut.register('MediaPlayPause', () => {
+    win.webContents.send('asynchronous-message', 'MediaPlayPause');
+  });
+  globalShortcut.register('MediaStop', () => {
+    win.webContents.send('asynchronous-message', 'MediaStop');
+  });
+  globalShortcut.register('MediaPreviousTrack', () => {
+    win.webContents.send('asynchronous-message', 'MediaPreviousTrack');
+  });
+  globalShortcut.register('MediaNextTrack', () => {
+    win.webContents.send('asynchronous-message', 'MediaNextTrack');
+  });
+
   createWindow();
 });
 

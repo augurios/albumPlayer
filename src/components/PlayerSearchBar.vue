@@ -35,7 +35,7 @@ export default {
             !track.title
               .toLowerCase()
               .includes(this.searchString.toLowerCase())
-            && !track.artist
+            && !track.tags.artist
               .toLowerCase()
               .includes(this.searchString.toLowerCase())
           ) {

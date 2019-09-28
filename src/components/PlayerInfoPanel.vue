@@ -198,7 +198,7 @@ export default {
       border-radius: 6px;
       box-shadow: 1px 1px 2px #0000002e;
       transform: translateX(0%);
-      transition: transform 0.3s ease;
+      transition: transform 0.3s ease, width 0.3s ease;
       * {
         overflow: hidden;
         text-overflow: ellipsis;
@@ -207,6 +207,7 @@ export default {
         width: 48%;
         &.centered {
               transform: translateX(50%);
+                  width: 50%;
         }
       }
     }
@@ -244,6 +245,6 @@ export default {
   position: absolute;
   bottom: 218px;
   z-index: 10;
-  right: 0;
+  left: 0;
 }
 </style>

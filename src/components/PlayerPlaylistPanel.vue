@@ -71,7 +71,7 @@ export default {
       return '/images/icon_placerholder.png';
     },
     currentMark(track) {
-      if (track === this.currentTrack && this.playing) {
+      if (track.indexId === this.currentTrack.indexId && this.playing) {
         return true;
       }
       return false;

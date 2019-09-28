@@ -12,7 +12,7 @@
       >
         <v-row>
           <v-col cols="12" style="padding-bottom: 48px;">
-            <PlayerSearchBar :playlist="playlist" @updateFolder="reloadPlaylist"/>
+            <PlayerSearchBar :playlist="playlist" @updateFolder="reloadPlaylist" />
             <PlayerPlaylistPanel
               :playlist="playlist"
               :selectedTrack="selectedTrack"
@@ -34,7 +34,9 @@
                 :width="15"
                 :value="getLoadPercent"
                 color="teal lighten-2"
-              ><strong>{{ getLoadPercent | percent }}</strong></v-progress-circular>
+              >
+                <strong>{{ getLoadPercent | percent }}</strong>
+              </v-progress-circular>
               <h5 class="text-center grey--text mt-2">Loading Playlist</h5>
             </v-col>
           </v-row>
@@ -52,10 +54,18 @@
           v-if="playlistActive"
           text
           icon
+          v-tooltip.right="'Toggle Playlist (P)'"
         >
           <v-icon>mdi-format-list-numbered</v-icon>
         </v-btn>
-        <v-btn color="blue-grey lighten-4" text icon @click="openPlaylist" v-else>
+        <v-btn
+          color="blue-grey lighten-4"
+          text
+          icon
+          @click="openPlaylist"
+          v-else
+          v-tooltip.right="'Toggle Playlist (P)'"
+        >
           <v-icon>mdi-format-list-numbered</v-icon>
         </v-btn>
       </div>
@@ -76,11 +86,65 @@
         />
       </div>
     </v-content>
+    <v-dialog v-model="isFirstTime" persistent width="480">
+      <v-card>
+        <v-card-title class="headline">
+          Welcome To
+          <span class="amber--text text--darken-3 ml-1 mr-1">IMP101</span>
+          <small>
+            <em>Alpha</em>
+          </small>
+        </v-card-title>
+        <v-card-text>
+
+          <v-alert
+            border="top"
+            colored-border
+            type="warning"
+            elevation="1"
+          >Alpha version, there might be some bugs and glitches.</v-alert>
+          <img src="images/logo_transparent.png" alt class="logo" style="width: 69%;margin: 0px auto 14px;display: block;"/>
+          <p>
+            <strong>Integral Music Player</strong>(IMP) is an open source music player for Digital Music Collectors and high-end audio enthusiasts, focused on simplicity and user experience, built with experimental web technologies.
+          </p>
+
+          <p>
+            Built with
+            <a href="https://electronjs.org/" target="_blank">ElectronJs</a> and
+            <a href="https://electronjs.org/" target="_blank">VueJs</a> by
+            <a href="https://github.com/augurios" target="_blank">Augurios</a>.
+          </p>
+          <h4>Planned Fatures</h4>
+          <ul>
+            <li>A proper MiniMode</li>
+            <li>Playlist tools</li>
+            <li>Playlist Manager</li>
+            <li>Remote Control</li>
+            <li>Integration with IoT</li>
+            <li>Other stuff i probably forgot</li>
+            <li>i dont know, want anything???</li>
+          </ul>
+          <br />
+          <p>
+            Please report any issues or let me know if you want some features miedo
+            <a
+              href="https://github.com/augurios/albumPlayer/issues"
+              target="_blank"
+            >here</a>
+          </p>
+        </v-card-text>
+        <v-card-actions>
+          <div class="flex-grow-1"></div>
+          <v-btn color="green darken-1" text @click="()=>{setFirstTime(false)}">Ok!</v-btn>
+        </v-card-actions>
+      </v-card>
+    </v-dialog>
   </v-app>
 </template>
 
 <script>
 import { remote } from 'electron';
+import { mapState, mapActions } from 'vuex';
 import PlayerTitleBar from './components/ToolBar.vue';
 import PlayerPlaylistPanel from './components/PlayerPlaylistPanel.vue';
 import PlayerControls from './components/PlayerControls.vue';
@@ -137,16 +201,28 @@ export default {
     loop: false,
     shuffle: false,
     seek: 0,
-    loadDir: '../albumPlayer/public/playlist/',
   }),
   created() {
     this.scanDirectory();
   },
+  mounted() {
+    this.$mousetrap.bind(
+      'p',
+      () => {
+        this.playlistActive = !this.playlistActive;
+      },
+      'keyup',
+    );
+  },
   methods: {
-    scanDirectory() {
+    ...mapActions({
+      setLoadDir: 'setLoadDir',
+      setFirstTime: 'setFirstTime',
+    }),
+    async scanDirectory() {
       const electronFs = remote.require('fs');
 
-      electronFs.readdir(this.loadDir, (err, files) => {
+      await electronFs.readdir(this.loadDir, (err, files) => {
         if (err) {
           console.log('err', err);
         }
@@ -155,7 +231,11 @@ export default {
         files.forEach((file, index) => {
           const fileArray = file.split('.');
           const fileFormat = fileArray.slice(-1)[0];
-          if (this.supportedFormats[fileFormat] && file.charAt(0) !== '.') {
+          if (
+            this.supportedFormats[fileFormat]
+            && file.charAt(0) !== '.'
+            && this.playlist.length < 501
+          ) {
             electronFs.readFile(this.loadDir + file, (error, data) => {
               if (error) throw error;
               const fileObj = {
@@ -177,7 +257,6 @@ export default {
       console.log(remote.app.getVersion(), remote, window, electronFs);
     },
     loadPlaylist() {
-      console.log('loadp', this.playlist);
       let playlistCount = 1;
       this.newPlaylist = [];
       this.playlist.forEach((track, index) => {
@@ -190,11 +269,10 @@ export default {
           onError: ({ info, type }) => {
             playlistCount += 1;
             this.checkCount(playlistCount);
-            console.error(`Error Reading Tags: ${info}, Type:${type}`);
+            console.warn(`Error Reading Tags: ${info}, Type:${type}`);
           },
         });
       });
-      console.log('playlist', this.playlist);
     },
     loaderStep() {
       this.infoLoaded += 1;
@@ -294,12 +372,13 @@ export default {
     },
     reloadPlaylist(newPath) {
       console.log('new path', newPath);
-      this.loadDir = `${newPath[0]}/`;
+      this.setLoadDir(`${newPath[0]}/`);
       this.resetPlaylist();
       this.scanDirectory();
     },
   },
   computed: {
+    ...mapState(['isFirstTime', 'loadDir']),
     currentTrack() {
       return this.playlist[this.index];
     },
@@ -404,9 +483,13 @@ export default {
 }
 .playlist-switch {
   position: fixed;
-  left: 0;
+  right: 0;
   top: calc(100vh - 255px);
   transition: all 0.4s ease;
   z-index: 10;
+  text-align: right;
+  &:hover {
+    min-width: 25%;
+  }
 }
 </style>

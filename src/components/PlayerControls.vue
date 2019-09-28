@@ -64,12 +64,8 @@
           <span class="current">{{ times.current | minutes}}</span> /
           <span class="duration">{{ times.duration | minutes}}</span>
         </div>
-        <v-progress-linear
-        indeterminate
-        color="teal lighten-2"
-        v-if="isLoading">
-        </v-progress-linear>
-        <v-btn text icon @click="toggleEq">
+        <v-progress-linear indeterminate color="teal lighten-2" v-if="isLoading"></v-progress-linear>
+        <v-btn text icon @click="toggleEq" v-tooltip.left="'EQ and Volume'">
           <v-icon color="teal lighten-2" v-if="this.eqActive">mdi-equalizer</v-icon>
           <v-icon color="blue-grey" v-else>mdi-equalizer</v-icon>
         </v-btn>
@@ -81,7 +77,7 @@
         v-touch:swipe.right="()=>{this.skipTrack('prev')}"
         v-touch:swipe.left="()=>{this.skipTrack('next')}"
       >
-        <v-btn text icon @click="toggleLoop">
+        <v-btn text icon @click="toggleLoop" v-tooltip.right="'Repeat Song (R)'">
           <v-icon color="teal lighten-2" v-if="this.loop">mdi-repeat-once</v-icon>
           <v-icon color="blue-grey" v-else>mdi-repeat-once</v-icon>
         </v-btn>
@@ -113,24 +109,15 @@
         </v-btn>
       </v-toolbar>
     </div>
-    <v-snackbar
-      v-model="snackbarError"
-      color="red"
-    >
+    <v-snackbar v-model="snackbarError" color="red">
       {{ snackbarErrorText }}
-      <v-btn
-        color="black"
-        text
-        @click="snackbarError = false"
-
-      >
-        Close
-      </v-btn>
+      <v-btn color="black" text @click="snackbarError = false">Close</v-btn>
     </v-snackbar>
   </div>
 </template>
 <script>
 import WaveSurfer from 'wavesurfer.js';
+import { ipcRenderer } from 'electron';
 
 export default {
   props: {
@@ -208,6 +195,42 @@ export default {
     snackbarErrorText: '',
   }),
   mounted() {
+    // local shortcuts
+    this.$mousetrap.bind('esc', this.stop, 'keyup');
+    this.$mousetrap.bind('space', this.playTrack, 'keyup');
+    this.$mousetrap.bind(
+      'left',
+      () => {
+        this.skipTrack('prev');
+      },
+      'keyup',
+    );
+    this.$mousetrap.bind(
+      'right',
+      () => {
+        this.skipTrack('next');
+      },
+      'keyup',
+    );
+    this.$mousetrap.bind('r', this.toggleLoop, 'keyup');
+    this.$mousetrap.bind('s', this.toggleShuffle, 'keyup');
+    this.$mousetrap.bind('m', this.toggleMute, 'keyup');
+    // global media keys
+
+    ipcRenderer.on('asynchronous-message', (event, arg) => {
+      const eventDir = {
+        MediaPreviousTrack: () => {
+          this.skipTrack('prev');
+        },
+        MediaNextTrack: () => {
+          this.skipTrack('next');
+        },
+        MediaPlayPause: this.playTrack,
+        MediaStop: this.stop,
+      };
+      eventDir[arg]();
+    });
+
     if (!this.wavesurfer) {
       this.createWaveSurfer();
       if (this.track) {
@@ -280,6 +303,9 @@ export default {
       }
       this.dirty = true;
       this.wavesurfer.playPause();
+    },
+    stop() {
+      this.wavesurfer.stop();
     },
     skipTrack(direction) {
       this.dirty = true;

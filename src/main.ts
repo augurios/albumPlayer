@@ -5,6 +5,13 @@ import store from './store';
 import './registerServiceWorker';
 import vuetify from './plugins/vuetify';
 import Vue2TouchEvents from 'vue2-touch-events';
+import VueMousetrap from 'vue-mousetrap';
+import Tooltip from 'vue-directive-tooltip';
+import 'vue-directive-tooltip/dist/vueDirectiveTooltip.css';
+
+Vue.use(Tooltip);
+
+Vue.use(VueMousetrap);
 
 Vue.use(Vue2TouchEvents);
 

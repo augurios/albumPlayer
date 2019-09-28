@@ -18,11 +18,14 @@
     "register-service-worker": "^1.6.2",
     "vue": "^2.6.10",
     "vue-class-component": "^7.0.2",
+    "vue-directive-tooltip": "^1.6.2",
+    "vue-mousetrap": "^1.0.1",
     "vue-property-decorator": "^8.1.0",
     "vue-router": "^3.0.3",
     "vue2-touch-events": "^2.0.0",
     "vuetify": "^2.0.0",
     "vuex": "^3.0.1",
+    "vuex-persist": "^2.1.0",
     "wavesurfer.js": "^3.0.0"
   },
   "devDependencies": {
