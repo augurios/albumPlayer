@@ -20,7 +20,8 @@
         </v-btn>
         <v-list-item-content @click="selectTrack(track)" @dblclick="playTrack(index, track)">
           <v-list-item-title>
-            <img :src="getImage(track)" />
+            <img v-if="track.cover" :src="`data:${track.tags.picture.format};base64,${track.cover}`" />
+            <img src="/images/icon_placerholder.png" v-else />
             <span
               v-if="track.tags"
             >{{ index | numbers }} {{ track.tags.title }} - {{ track.tags.artist }}</span>
@@ -53,22 +54,6 @@ export default {
     selectPlay(track, index) {
       this.selectTrack(track);
       this.playTrack(index, track);
-    },
-    arrayBufferToBase64(buffer) {
-      let binary = '';
-      const bytes = new Uint8Array(buffer);
-      const len = bytes.byteLength;
-      for (let i = 0; i < len; i += 1) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      return window.btoa(binary);
-    },
-    getImage(track) {
-      if (track && track.tags && track.tags.picture) {
-        const base64String = this.arrayBufferToBase64(track.tags.picture.data);
-        return `data:${track.tags.picture.format};base64,${base64String}`;
-      }
-      return '/images/icon_placerholder.png';
     },
     currentMark(track) {
       if (track.indexId === this.currentTrack.indexId && this.playing) {

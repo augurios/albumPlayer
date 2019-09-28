@@ -105,13 +105,9 @@ export default {
     getImage() {
       if (
         this.trackInfo
-        && this.trackInfo.tags
-        && this.trackInfo.tags.picture
+        && this.trackInfo.cover
       ) {
-        const base64String = this.arrayBufferToBase64(
-          this.trackInfo.tags.picture.data,
-        );
-        return `data:${this.trackInfo.tags.picture.format};base64,${base64String}`;
+        return `data:${this.trackInfo.tags.picture.format};base64,${this.trackInfo.cover}`;
       }
       return `${window.location.origin}/images/logo.png`;
     },

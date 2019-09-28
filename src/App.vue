@@ -104,7 +104,7 @@
             elevation="1"
           >Alpha version, there might be some bugs and glitches.</v-alert>
           <img src="images/logo_transparent.png" alt class="logo" style="width: 69%;margin: 0px auto 14px;display: block;"/>
-          <p>
+          <p style="text-align: center">
             <strong>Integral Music Player</strong>(IMP) is an open source music player for Digital Music Collectors and high-end audio enthusiasts, focused on simplicity and user experience, built with experimental web technologies.
           </p>
 
@@ -263,6 +263,9 @@ export default {
         jsmediatags.read(track.file, {
           onSuccess: ({ tags }) => {
             this.playlist[index].tags = tags;
+            if (tags.picture) {
+              this.playlist[index].cover = this.arrayBufferToBase64(tags.picture.data);
+            }
             playlistCount += 1;
             this.checkCount(playlistCount);
           },
@@ -376,6 +379,15 @@ export default {
       this.resetPlaylist();
       this.scanDirectory();
     },
+    arrayBufferToBase64(buffer) {
+      let binary = '';
+      const bytes = new Uint8Array(buffer);
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i += 1) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return window.btoa(binary);
+    },
   },
   computed: {
     ...mapState(['isFirstTime', 'loadDir']),
@@ -404,6 +416,7 @@ export default {
           artist,
           title,
           tags,
+          cover: this.selectedTrack.cover,
           extendedTags: this.selectedTrack.tags,
         };
       }
