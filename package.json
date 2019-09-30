@@ -12,7 +12,9 @@
     "postinstall": "electron-builder install-app-deps",
     "postuninstall": "electron-builder install-app-deps",
     "winbuild": "./node_modules/.bin/vue-cli-service electron:build --windows",
-    "linuxbuild": "./node_modules/.bin/vue-cli-service electron:build --linux"
+    "linuxbuild": "./node_modules/.bin/vue-cli-service electron:build --linux",
+    "publishTD": "./node_modules/.bin/vue-cli-service electron:build -mwl --publish onTagOrDraft",
+    "publish": "./node_modules/.bin/vue-cli-service electron:build -mwl --publish always"
   },
   "main": "background.js",
   "dependencies": {
