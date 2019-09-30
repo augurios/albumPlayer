@@ -11,7 +11,7 @@
         :style="`background-image:url(${getImage})`"
         v-if="trackInfo.tags"
       ></div>
-      <div class="song-info-tags-labels" v-if="trackInfo.title" :class="[{centered: !playlistActive}]">
+      <div class="song-info-tags-labels" v-if="trackInfo.title" :class="[{centered: !playlistActive}]" @click="gototrack">
         <h6>Now Playing</h6>
         <h3 v-if="trackInfo.tags">
           <v-icon>mdi-artist</v-icon>
@@ -29,7 +29,7 @@
       <div class="song-info-tags-labels" v-else>
         <h5>Welcome! Select or Play a Track</h5>
       </div>
-      <div class="img-display" v-if="trackInfo.title" :class="[{centered: !playlistActive}]">
+      <div class="img-display" v-if="trackInfo.title" :class="[{centered: !playlistActive}]"  @click="gototrack">
         <img :src="getImage" />
       </div>
     </div>
@@ -99,6 +99,9 @@ export default {
     openPlaylist() {
       this.detailsActive = false;
       this.$emit('openPlaylist');
+    },
+    gototrack() {
+      this.$emit('gototrack', this.trackInfo);
     },
   },
   computed: {

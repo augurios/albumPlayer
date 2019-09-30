@@ -1,3 +1,4 @@
+/* eslint-disable */
 'use strict';
 
 import {
@@ -7,6 +8,9 @@ import {
   createProtocol,
   installVueDevtools,
 } from 'vue-cli-plugin-electron-builder/lib';
+const Menu = require('electron-create-menu');
+const { autoUpdater } = require("electron-updater")
+
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
@@ -35,7 +39,9 @@ function createWindow() {
   });
 
   win.once('ready-to-show', () => {
-    win.show();
+    if(win) {
+      win.show();
+    }
   });
 
   if (process.env.WEBPACK_DEV_SERVER_URL) {
@@ -73,7 +79,27 @@ app.on('activate', () => {
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
-app.on('ready', async () => {
+app.on('ready', () => {
+  autoUpdater.checkForUpdatesAndNotify();
+  Menu((defaultMenu:Array<any>, separator:Function) => {
+    // console.log('menu', defaultMenu[0].submenu);
+    if(!isDevelopment) {
+      const newMenu = [defaultMenu[0]];
+      newMenu[0].submenu[0] = { label: 'About' };
+      return newMenu;
+    }
+    
+    // defaultMenu.push({
+    //   label: 'My custom menu!',
+    //   submenu: [
+    //     { label: 'my first item' },
+    //     separator(),
+    //     { label: 'my second item' },
+    //   ],
+    // });
+
+    return defaultMenu;
+  });
   if (isDevelopment && !process.env.IS_TEST) {
     // Install Vue Devtools
     // Devtools extensions are broken in Electron 6.0.0 and greater
@@ -89,19 +115,57 @@ app.on('ready', async () => {
   }
 
   globalShortcut.register('MediaPlayPause', () => {
+    if(win) {
     win.webContents.send('asynchronous-message', 'MediaPlayPause');
+    }
   });
   globalShortcut.register('MediaStop', () => {
+    if(win) {
     win.webContents.send('asynchronous-message', 'MediaStop');
+    }
   });
   globalShortcut.register('MediaPreviousTrack', () => {
+    if(win) {
     win.webContents.send('asynchronous-message', 'MediaPreviousTrack');
+    }
   });
   globalShortcut.register('MediaNextTrack', () => {
+    if(win) {
     win.webContents.send('asynchronous-message', 'MediaNextTrack');
+    }
   });
 
   createWindow();
+});
+
+//auto updater
+
+function sendStatusToWindow(text:String) {
+  if(win) {
+    win.webContents.send('message', text);
+  }
+}
+
+autoUpdater.on('checking-for-update', () => {
+  sendStatusToWindow('Checking for update...');
+})
+autoUpdater.on('update-available', () => {
+  sendStatusToWindow('Update available.');
+})
+autoUpdater.on('update-not-available', () => {
+  sendStatusToWindow('Update not available.');
+})
+autoUpdater.on('error', (err: any) => {
+  sendStatusToWindow('Error in auto-updater. ' + err);
+})
+autoUpdater.on('download-progress', (progressObj:any) => {
+  let log_message = "Download speed: " + progressObj.bytesPerSecond;
+  log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
+  log_message = log_message + ' (' + progressObj.transferred + "/" + progressObj.total + ')';
+  sendStatusToWindow(log_message);
+})
+autoUpdater.on('update-downloaded', () => {
+  sendStatusToWindow('Update downloaded');
 });
 
 // Exit cleanly on request from parent process in development mode.

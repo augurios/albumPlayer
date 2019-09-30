@@ -14,10 +14,10 @@ export default new Vuex.Store({
     isFirstTime: true,
     isFullScreen: false,
     isMiniMode: false,
-    loadDir: '../albumPlayer/public/playlist/',
+    loadDir: '',
   },
   mutations: {
-    setFullscreen(state, value) {
+    setFullscreen(state:any, value) {
       state.isFullScreen = value;
     },
     setMiniMode(state, value) {

@@ -88,7 +88,7 @@ export default {
       const topPos = elem.offsetTop;
       this.scrollTo(
         document.getElementById('playlist-panel'),
-        topPos + 68,
+        topPos,
         600,
       );
     },

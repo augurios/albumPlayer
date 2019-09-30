@@ -6,21 +6,33 @@
         :fluid="true"
         v-if="this.listLoaded"
         class="playlist-panel"
-        id="playlist-panel"
         v-bind:class="{ active: playlistActive }"
         v-touch:swipe.left="() => {this.playlistActive = false}"
       >
         <v-row>
           <v-col cols="12" style="padding-bottom: 48px;">
             <PlayerSearchBar :playlist="playlist" @updateFolder="reloadPlaylist" />
-            <PlayerPlaylistPanel
-              :playlist="playlist"
-              :selectedTrack="selectedTrack"
-              :currentTrack="currentTrack"
-              :playing="playing"
-              @selecttrack="selectTrack"
-              @playtrack="play"
-            />
+            <div class="scroller" id="playlist-panel" v-if="playlist.length">
+              <PlayerPlaylistPanel
+                :playlist="playlist"
+                :selectedTrack="selectedTrack"
+                :currentTrack="currentTrack"
+                :playing="playing"
+                @selecttrack="selectTrack"
+                @playtrack="play"
+                ref="playListComponent"
+              />
+            </div>
+            <div>
+              <v-card>
+                <v-list>
+                  <v-list-item>
+                    No valid files found on selected directory.
+                    Please select a directory to import audio files from
+                  </v-list-item>
+                </v-list>
+              </v-card>
+            </div>
           </v-col>
         </v-row>
       </v-container>
@@ -37,7 +49,7 @@
               >
                 <strong>{{ getLoadPercent | percent }}</strong>
               </v-progress-circular>
-              <h5 class="text-center grey--text mt-2">Loading Playlist</h5>
+              <h5 class="text-center grey--text mt-2">Analyzing Files</h5>
             </v-col>
           </v-row>
         </v-layout>
@@ -46,6 +58,7 @@
         :trackInfo="getTrackInfo"
         :playlistActive="playlistActive"
         @openPlaylist="openPlaylist"
+        @gototrack="gototrack"
       />
       <div class="playlist-switch">
         <v-btn
@@ -83,9 +96,16 @@
           @toggleloop="toggleLoop"
           @toggleshuffle="toggleShuffle"
           @selecttrack="selectTrack"
+          @gototrack="gototrack"
         />
       </div>
     </v-content>
+    <v-snackbar v-model="downloadReady" color="red">
+      An update is ready to be installed.
+      <v-btn color="black" text @click="() => {
+              remote.app.quit();
+        }">Restart</v-btn>
+    </v-snackbar>
     <v-dialog v-model="isFirstTime" persistent width="480">
       <v-card>
         <v-card-title class="headline">
@@ -96,14 +116,18 @@
           </small>
         </v-card-title>
         <v-card-text>
-
           <v-alert
             border="top"
             colored-border
             type="warning"
             elevation="1"
           >Alpha version, there might be some bugs and glitches.</v-alert>
-          <img src="images/logo_transparent.png" alt class="logo" style="width: 69%;margin: 0px auto 14px;display: block;"/>
+          <img
+            src="images/logo_transparent.png"
+            alt
+            class="logo"
+            style="width: 69%;margin: 0px auto 14px;display: block;"
+          />
           <p style="text-align: center">
             <strong>Integral Music Player</strong>(IMP) is an open source music player for Digital Music Collectors and high-end audio enthusiasts, focused on simplicity and user experience, built with experimental web technologies.
           </p>
@@ -118,13 +142,13 @@
           <ul>
             <li>A proper MiniMode</li>
             <li>Playlist tools</li>
+            <li>ID3 tag Editor</li>
             <li>Playlist Manager</li>
             <li>Remote Control</li>
             <li>Integration with IoT</li>
             <li>Other stuff i probably forgot</li>
             <li>i dont know, want anything???</li>
           </ul>
-          <br />
           <p>
             Please report any issues or let me know if you want some features miedo
             <a
@@ -143,7 +167,7 @@
 </template>
 
 <script>
-import { remote } from 'electron';
+import { remote, ipcRenderer } from 'electron';
 import { mapState, mapActions } from 'vuex';
 import PlayerTitleBar from './components/ToolBar.vue';
 import PlayerPlaylistPanel from './components/PlayerPlaylistPanel.vue';
@@ -201,11 +225,21 @@ export default {
     loop: false,
     shuffle: false,
     seek: 0,
+    downloadReady: false,
   }),
   created() {
+    if (!this.loadDir) {
+      const path = remote.require('path');
+      const pathToAsset = path.join(__static, '/');
+      console.log('before', pathToAsset);
+      this.setLoadDir(pathToAsset);
+    }
     this.scanDirectory();
   },
   mounted() {
+    ipcRenderer.on('message', (event, arg) => {
+      if (arg === 'Update downloaded') this.downloadReady = true;
+    });
     this.$mousetrap.bind(
       'p',
       () => {
@@ -219,10 +253,14 @@ export default {
       setLoadDir: 'setLoadDir',
       setFirstTime: 'setFirstTime',
     }),
-    async scanDirectory() {
+    scanDirectory() {
       const electronFs = remote.require('fs');
-
-      await electronFs.readdir(this.loadDir, (err, files) => {
+      electronFs.readdir(this.loadDir, (err, files) => {
+        if (!files) {
+          this.loadPlaylist();
+          this.dataLoaded = true;
+        }
+        console.log('loading dir', this.loadDir, files);
         if (err) {
           console.log('err', err);
         }
@@ -237,13 +275,19 @@ export default {
             && this.playlist.length < 501
           ) {
             electronFs.readFile(this.loadDir + file, (error, data) => {
+              let idNum = 0;
+              for (let i = 0, len = file.length; i < len; i += 1) {
+                idNum += file[i].charCodeAt(0);
+              }
+
               if (error) throw error;
               const fileObj = {
                 title: file,
                 path: this.loadDir + file,
                 file: data,
                 display: true,
-                indexId: index,
+                indexId: idNum,
+                index,
                 mime: this.supportedFormats[fileFormat],
               };
               this.playlist.push(fileObj);
@@ -257,14 +301,16 @@ export default {
       console.log(remote.app.getVersion(), remote, window, electronFs);
     },
     loadPlaylist() {
-      let playlistCount = 1;
+      let playlistCount = 0;
       this.newPlaylist = [];
       this.playlist.forEach((track, index) => {
         jsmediatags.read(track.file, {
           onSuccess: ({ tags }) => {
             this.playlist[index].tags = tags;
             if (tags.picture) {
-              this.playlist[index].cover = this.arrayBufferToBase64(tags.picture.data);
+              this.playlist[index].cover = this.arrayBufferToBase64(
+                tags.picture.data,
+              );
             }
             playlistCount += 1;
             this.checkCount(playlistCount);
@@ -276,6 +322,10 @@ export default {
           },
         });
       });
+      if (!this.playlist.length) {
+        this.listLoaded = true;
+        this.playListReady = true;
+      }
     },
     loaderStep() {
       this.infoLoaded += 1;
@@ -306,7 +356,7 @@ export default {
         localIndex = this.index;
       }
       this.selectedTrack = {};
-      this.selectedTrack = this.playlist[index];
+      this.selectedTrack = this.playlist[localIndex];
       this.playing = true;
       this.index = localIndex;
       if (window.innerWidth < 991) {
@@ -365,10 +415,10 @@ export default {
       this.playlistActive = true;
     },
     compare(a, b) {
-      if (a.indexId < b.indexId) {
+      if (a.index < b.index) {
         return -1;
       }
-      if (a.indexId > b.indexId) {
+      if (a.index > b.index) {
         return 1;
       }
       return 0;
@@ -388,10 +438,17 @@ export default {
       }
       return window.btoa(binary);
     },
+    gototrack(track) {
+      this.$refs.playListComponent.initiateScroll(track);
+    },
   },
   computed: {
     ...mapState(['isFirstTime', 'loadDir']),
     currentTrack() {
+      const newCur = this.playlist[this.index];
+      if (newCur) {
+        newCur.indexFlag = this.index;
+      }
       return this.playlist[this.index];
     },
     getTrackInfo() {
@@ -418,6 +475,7 @@ export default {
           tags,
           cover: this.selectedTrack.cover,
           extendedTags: this.selectedTrack.tags,
+          indexId: this.selectedTrack.indexId,
         };
       }
       if (this.selectedTrack && this.selectedTrack.title) {
@@ -432,8 +490,9 @@ export default {
       };
     },
     getLoadPercent() {
-      if (!this.initializing) {
-        return (this.infoLoaded / this.infoToLoad) * 100;
+      if (!this.initializing && this.infoLoaded > 0) {
+        // console.log('loading', this.infoLoaded, this.infoToLoad);
+        return ((this.infoLoaded - 1) / this.infoToLoad) * 100;
       }
       return 0;
     },
@@ -464,15 +523,18 @@ export default {
   background-position: center calc(50% - 86px);
 }
 .playlist-panel {
+  .scroller {
+    padding-bottom: 398px;
+    overflow: auto;
+    height: 100vh;
+    border-radius: 6px;
+  }
   position: absolute;
   left: 0;
   top: 56px;
   padding-top: 0;
   transition: transform 0.4s ease, top 0.4s ease;
   transform: translateX(-100%);
-  padding-bottom: 260px;
-  overflow: auto;
-  height: 100%;
   z-index: 1;
   @media (min-width: 991px) {
     left: initial;

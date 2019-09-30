@@ -59,13 +59,19 @@
         v-touch:swipe.right="()=>{this.wavesurfer.skipForward()}"
         v-touch:swipe.left="()=>{this.wavesurfer.skipBackward()}"
       >
+        <div class="waveform-info-file" v-if="currentFile">
+          <v-btn text @click="goToSong" v-tooltip.right="currentFile.title" >
+            <v-icon color="blue-grey">mdi-information-variant</v-icon>
+            <span v-if="currentFile.tags">{{currentFile.tags.title}}</span>
+          </v-btn>
+        </div>
         <div id="waveform"></div>
         <div class="times-display">
           <span class="current">{{ times.current | minutes}}</span> /
           <span class="duration">{{ times.duration | minutes}}</span>
         </div>
         <v-progress-linear indeterminate color="teal lighten-2" v-if="isLoading"></v-progress-linear>
-        <v-btn text icon @click="toggleEq" v-tooltip.left="'EQ and Volume'">
+        <v-btn text icon @click="toggleEq" v-tooltip.left="'EQ and Volume'" class="song-tools">
           <v-icon color="teal lighten-2" v-if="this.eqActive">mdi-equalizer</v-icon>
           <v-icon color="blue-grey" v-else>mdi-equalizer</v-icon>
         </v-btn>
@@ -193,6 +199,9 @@ export default {
     updateSeek: null,
     snackbarError: false,
     snackbarErrorText: '',
+    currentFile: {
+      title: '',
+    },
   }),
   mounted() {
     // local shortcuts
@@ -234,7 +243,7 @@ export default {
     if (!this.wavesurfer) {
       this.createWaveSurfer();
       if (this.track) {
-        this.loadTrack(this.track.file);
+        this.loadTrack(this.track);
       }
       this.wavesurfer.on('ready', () => {
         this.isLoading = false;
@@ -264,6 +273,9 @@ export default {
       });
     }
   },
+  beforeDestroy() {
+    this.wavesurfer.destroy();
+  },
   methods: {
     createWaveSurfer() {
       if (!this.initial) {
@@ -287,8 +299,9 @@ export default {
       this.wavesurfer.filters = filters;
     },
     loadTrack(track) {
-      if (this.track && track) {
-        const fileBlob = new Blob([track], this.track.mime);
+      if (track) {
+        const fileBlob = new Blob([track.file], track.mime);
+        this.currentFile = track;
         this.wavesurfer.loadBlob(fileBlob);
         this.isLoading = true;
       }
@@ -296,10 +309,10 @@ export default {
     playTrack() {
       if (!this.dirty) {
         if (this.track.file) {
-          this.loadTrack(this.track.file);
+          this.loadTrack(this.track);
         }
-        this.$emit('playtrack', this.isPlaying);
-        this.$emit('selecttrack', this.track);
+        this.$emit('playtrack', this.track.indexFlag);
+        this.$emit('selecttrack', this.currentFile);
       }
       this.dirty = true;
       this.wavesurfer.playPause();
@@ -350,6 +363,9 @@ export default {
     setCurrentTime() {
       this.times.current = this.wavesurfer.getCurrentTime();
     },
+    goToSong() {
+      this.$emit('gototrack', this.track);
+    },
   },
   computed: {
     isPlaying() {
@@ -359,17 +375,21 @@ export default {
   },
   watch: {
     track(newTrack) {
+      console.log('track', newTrack);
       if (newTrack && this.initial) {
         this.initial = false;
       } else if (newTrack && this.dirty) {
-        this.loadTrack(newTrack.file);
+        this.loadTrack(newTrack);
         this.dirty = true;
+      } else {
+        this.dirty = false;
+        this.initial = true;
       }
     },
     playing(playOn) {
       if (playOn && !this.dirty && this.track.file && !this.isPlaying) {
         this.dirty = true;
-        this.loadTrack(this.track.file);
+        this.loadTrack(this.track);
       }
     },
     isPlaying() {
@@ -391,7 +411,20 @@ export default {
 <style lang="scss">
 .waveform-wrap {
   position: relative;
-  .v-btn {
+  .waveform-info-file {
+    position: absolute;
+    top: 0;
+    z-index: 9;
+    max-width: 100%;
+    span {
+      span {
+        text-shadow: 1px 1px 2px #000;
+        font-size: 10px;
+        color: #ffffffb3;
+      }
+    }
+  }
+  .song-tools {
     position: absolute;
     bottom: 5px;
     right: 10px;

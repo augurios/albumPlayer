@@ -1,5 +1,5 @@
 <template>
-  <v-toolbar flat class="pt-3">
+  <v-toolbar flat class="pt-3 search-bar">
     <v-text-field
       clearable
       prepend-icon="mdi-search-web"
@@ -8,7 +8,7 @@
       @input="searchPlaylist"
     ></v-text-field>
     <v-spacer></v-spacer>
-    <v-btn color="teal lighten-2" dark @click="getDirectory">
+    <v-btn color="teal lighten-2" dark @click="getDirectory" v-tooltip.left="'Load Folder'">
       <v-icon>mdi-database-import</v-icon>
     </v-btn>
   </v-toolbar>
@@ -66,3 +66,18 @@ export default {
   },
 };
 </script>
+<style lang="scss">
+.search-bar.v-sheet.v-sheet {
+  height: 72px !important;
+  position: relative;
+  z-index: 1;
+  border-radius: 4px;
+  margin-bottom: 2px;
+  box-shadow: 1px 1px 2px #0000002e;
+  background-color: #424242dc;
+  backdrop-filter: blur(10px);
+  .v-btn {
+    margin-top: -18px;
+  }
+}
+</style>
