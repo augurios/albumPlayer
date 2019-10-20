@@ -9,7 +9,7 @@
       <div
         class="song-info-tags-bg"
         :style="`background-image:url(${getImage})`"
-        v-if="trackInfo.tags"
+        v-if="trackInfo.cover"
       ></div>
       <div class="song-info-tags-labels" v-if="trackInfo.title" :class="[{centered: !playlistActive}]" @click="gototrack">
         <h6>Now Playing</h6>

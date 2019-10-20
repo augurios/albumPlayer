@@ -21,6 +21,7 @@
     "core-js": "^2.6.5",
     "electron-create-menu": "^3.0.0",
     "electron-updater": "^4.1.2",
+    "music-metadata": "^4.8.2",
     "node-id3": "^0.1.11",
     "register-service-worker": "^1.6.2",
     "vue": "^2.6.10",
