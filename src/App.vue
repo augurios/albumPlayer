@@ -151,8 +151,6 @@ export default {
       au: { type: 'audio/basic' },
       snd: { type: 'audio/basic' },
       pmc: { type: 'auido/L24' },
-      mid: { type: 'audio/mid' },
-      rmi: { type: 'audio/mid' },
       mp3: { type: 'audio/mpeg' },
       mp4: { type: 'audio/mp4' },
       aif: { type: 'audio/x-aiff' },
@@ -198,6 +196,14 @@ export default {
     ...mapActions({
       setLoadDir: 'setLoadDir',
     }),
+    callForTags(args, cid) {
+      return new Promise((resolve) => {
+        ipcRenderer.send('readFileRequest', args, cid);
+        ipcRenderer.once(`readFileResponse-${cid}`, (event, result) => {
+          resolve(result);
+        });
+      });
+    },
     scanDirectory() {
       const electronFs = remote.require('fs');
       electronFs.readdir(this.loadDir, (err, files) => {
@@ -219,21 +225,21 @@ export default {
             && file.charAt(0) !== '.'
             && this.playlist.length < 501
           ) {
-            electronFs.readFile(this.loadDir + file, (error, data) => {
-              let idNum = 0;
-              for (let i = 0, len = file.length; i < len; i += 1) {
-                idNum += file[i].charCodeAt(0);
-              }
-
-              if (error) throw error;
+            let idNum = 0;
+            for (let i = 0, len = file.length; i < len; i += 1) {
+              idNum += file[i].charCodeAt(0);
+            }
+            this.callForTags(this.loadDir + file, idNum += index).then((result) => {
               const fileObj = {
                 title: file,
                 path: this.loadDir + file,
-                file: data,
                 display: true,
-                indexId: idNum,
+                indexId: idNum += index,
                 index,
                 mime: this.supportedFormats[fileFormat],
+                tags: result.common,
+                cover: result.common.picture
+                  ? this.arrayBufferToBase64(result.common.picture[0].data) : null,
               };
               this.playlist.push(fileObj);
               this.loaderStep();
@@ -245,41 +251,15 @@ export default {
       });
       console.log(remote.app.getVersion(), remote, window, electronFs);
     },
-    loadPlaylist() {
-      let playlistCount = 0;
-      this.newPlaylist = [];
-      this.playlist.forEach((track, index) => {
-        jsmediatags.read(track.file, {
-          onSuccess: ({ tags }) => {
-            this.playlist[index].tags = tags;
-            if (tags.picture) {
-              this.playlist[index].cover = this.arrayBufferToBase64(
-                tags.picture.data,
-              );
-            }
-            playlistCount += 1;
-            this.checkCount(playlistCount);
-          },
-          onError: ({ info, type }) => {
-            playlistCount += 1;
-            this.checkCount(playlistCount);
-            console.warn(`Error Reading Tags: ${info}, Type:${type}`);
-          },
-        });
-      });
-      if (!this.playlist.length) {
-        this.listLoaded = true;
-        this.playListReady = true;
-      }
-    },
     loaderStep() {
       this.infoLoaded += 1;
       if (this.infoToLoad === this.infoLoaded) {
         this.playlist.sort(this.compare);
         setTimeout(() => {
           if (!this.dataLoaded) {
-            this.loadPlaylist();
             this.dataLoaded = true;
+            this.listLoaded = true;
+            this.playListReady = true;
           }
         }, 700);
       }
@@ -306,12 +286,6 @@ export default {
       this.index = localIndex;
       if (window.innerWidth < 991) {
         this.playlistActive = false;
-      }
-    },
-    checkCount(playlistCount) {
-      if (playlistCount === this.playlist.length) {
-        this.listLoaded = true;
-        this.playListReady = true;
       }
     },
     resetPlaylist() {
@@ -369,6 +343,7 @@ export default {
       return 0;
     },
     reloadPlaylist(newPath) {
+      this.playing = false;
       console.log('new path', newPath);
       this.setLoadDir(`${newPath[0]}/`);
       this.resetPlaylist();

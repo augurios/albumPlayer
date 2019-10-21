@@ -8,9 +8,11 @@ import {
   createProtocol,
   installVueDevtools,
 } from 'vue-cli-plugin-electron-builder/lib';
+import * as mm from 'music-metadata';
 const Menu = require('electron-create-menu');
 const { autoUpdater } = require("electron-updater")
-
+const { ipcMain } = require('electron');
+const util = require('util');
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
@@ -39,7 +41,7 @@ function createWindow() {
   });
 
   win.once('ready-to-show', () => {
-    if(win) {
+    if (win) {
       win.show();
     }
   });
@@ -81,14 +83,14 @@ app.on('activate', () => {
 // Some APIs can only be used after this event occurs.
 app.on('ready', () => {
   autoUpdater.checkForUpdatesAndNotify();
-  Menu((defaultMenu:Array<any>, separator:Function) => {
+  Menu((defaultMenu: Array<any>, separator: Function) => {
     // console.log('menu', defaultMenu[0].submenu);
-    if(!isDevelopment) {
+    if (!isDevelopment) {
       const newMenu = [defaultMenu[0]];
       newMenu[0].submenu[0] = { label: 'About' };
       return newMenu;
     }
-    
+
     // defaultMenu.push({
     //   label: 'My custom menu!',
     //   submenu: [
@@ -114,24 +116,35 @@ app.on('ready', () => {
     // }
   }
 
+  ipcMain.on('readFileRequest', (event, arg, cid) => {
+    mm.parseFile(arg, { native: true })
+      .then(metadata => {
+        event.sender.send(`readFileResponse-${cid}`, metadata)
+      })
+      .catch(err => {
+        console.error(err.message);
+      });
+  })
+
+
   globalShortcut.register('MediaPlayPause', () => {
-    if(win) {
-    win.webContents.send('asynchronous-message', 'MediaPlayPause');
+    if (win) {
+      win.webContents.send('asynchronous-message', 'MediaPlayPause');
     }
   });
   globalShortcut.register('MediaStop', () => {
-    if(win) {
-    win.webContents.send('asynchronous-message', 'MediaStop');
+    if (win) {
+      win.webContents.send('asynchronous-message', 'MediaStop');
     }
   });
   globalShortcut.register('MediaPreviousTrack', () => {
-    if(win) {
-    win.webContents.send('asynchronous-message', 'MediaPreviousTrack');
+    if (win) {
+      win.webContents.send('asynchronous-message', 'MediaPreviousTrack');
     }
   });
   globalShortcut.register('MediaNextTrack', () => {
-    if(win) {
-    win.webContents.send('asynchronous-message', 'MediaNextTrack');
+    if (win) {
+      win.webContents.send('asynchronous-message', 'MediaNextTrack');
     }
   });
 
@@ -140,8 +153,8 @@ app.on('ready', () => {
 
 //auto updater
 
-function sendStatusToWindow(text:String) {
-  if(win) {
+function sendStatusToWindow(text: String) {
+  if (win) {
     win.webContents.send('message', text);
   }
 }
@@ -158,7 +171,7 @@ autoUpdater.on('update-not-available', () => {
 autoUpdater.on('error', (err: any) => {
   sendStatusToWindow('Error in auto-updater. ' + err);
 })
-autoUpdater.on('download-progress', (progressObj:any) => {
+autoUpdater.on('download-progress', (progressObj: any) => {
   let log_message = "Download speed: " + progressObj.bytesPerSecond;
   log_message = log_message + ' - Downloaded ' + progressObj.percent + '%';
   log_message = log_message + ' (' + progressObj.transferred + "/" + progressObj.total + ')';

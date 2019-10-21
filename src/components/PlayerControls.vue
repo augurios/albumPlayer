@@ -123,7 +123,9 @@
 </template>
 <script>
 import WaveSurfer from 'wavesurfer.js';
-import { ipcRenderer } from 'electron';
+import { remote, ipcRenderer } from 'electron';
+
+const electronFs = remote.require('fs');
 
 export default {
   props: {
@@ -270,6 +272,7 @@ export default {
         this.snackbarError = true;
         this.snackbarErrorText = `${e}, File could be corrupted.`;
         this.isLoading = false;
+        this.initial = false;
       });
     }
   },
@@ -283,7 +286,7 @@ export default {
       }
       this.wavesurfer = WaveSurfer.create({
         container: '#waveform',
-        barWidth: 3,
+        barWidth: 4,
       });
     },
     createEq() {
@@ -300,15 +303,20 @@ export default {
     },
     loadTrack(track) {
       if (track) {
-        const fileBlob = new Blob([track.file], track.mime);
-        this.currentFile = track;
-        this.wavesurfer.loadBlob(fileBlob);
         this.isLoading = true;
+        electronFs.readFile(track.path, (error, data) => {
+          if (error) throw error;
+          const fileBlob = new Blob([data], track.mime);
+          this.currentFile = { ...track };
+          this.wavesurfer.loadBlob(fileBlob);
+        });
+      } else {
+        this.clearTrack();
       }
     },
     playTrack() {
       if (!this.dirty) {
-        if (this.track.file) {
+        if (this.track) {
           this.loadTrack(this.track);
         }
         this.$emit('playtrack', this.track.indexFlag);
@@ -316,6 +324,12 @@ export default {
       }
       this.dirty = true;
       this.wavesurfer.playPause();
+    },
+    clearTrack() {
+      this.wavesurfer.empty();
+      this.currentFile = {
+        title: '',
+      };
     },
     stop() {
       this.wavesurfer.stop();
@@ -378,24 +392,31 @@ export default {
       console.log('track', newTrack);
       if (newTrack && this.initial) {
         this.initial = false;
-      } else if (newTrack && this.dirty) {
+      } else if (newTrack && !this.dirty) {
         this.loadTrack(newTrack);
         this.dirty = true;
+      } else if (newTrack !== this.currentFile && this.dirty) {
+        this.loadTrack(newTrack);
       } else {
         this.dirty = false;
         this.initial = true;
       }
     },
     playing(playOn) {
-      if (playOn && !this.dirty && this.track.file && !this.isPlaying) {
+      if (playOn && !this.dirty && this.track && !this.isPlaying) {
         this.dirty = true;
+        this.loadTrack(this.track);
+      } else if (!playOn && !this.track) {
+        this.dirty = false;
+        this.initial = true;
+      } else if (playOn && this.dirty && this.track && !this.isPlaying) {
         this.loadTrack(this.track);
       }
     },
     isPlaying() {
       if (!this.dirty) {
         this.dirty = true;
-        this.loadTrack(this.track.file);
+        this.loadTrack(this.track);
       }
       if (this.isPlaying) {
         this.updateSeek = setInterval(() => {
