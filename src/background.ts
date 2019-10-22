@@ -12,7 +12,7 @@ import * as mm from 'music-metadata';
 const Menu = require('electron-create-menu');
 const { autoUpdater } = require("electron-updater")
 const { ipcMain } = require('electron');
-const util = require('util');
+const NodeID3 = require('node-id3')
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
@@ -124,6 +124,24 @@ app.on('ready', () => {
       .catch(err => {
         console.error(err.message);
       });
+  })
+
+  ipcMain.on('writeFileRequest', (event, track, cid) => {
+    const newTrack = { ...track }
+    newTrack.tags.image = {
+      mime: track.tags.picture[0].format,
+      type: {
+        id: 3,
+        name: 'front cover',
+      },
+      description: track.tags.picture[0].description,
+      imageBuffer: track.tags.picture[0].data,
+    };
+      
+      NodeID3.write(track.tags, track.path, function(err, buffer) { 
+        if (err) console.log('error wrinting tags', err);
+        event.sender.send(`writeFileResponse-${cid}`, buffer);
+       }) 
   })
 
 

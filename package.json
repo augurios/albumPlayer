@@ -28,6 +28,7 @@
     "vue-class-component": "^7.0.2",
     "vue-directive-tooltip": "^1.6.2",
     "vue-mousetrap": "^1.0.1",
+    "vue-picture-input": "^2.1.6",
     "vue-property-decorator": "^8.1.0",
     "vue-router": "^3.0.3",
     "vue2-touch-events": "^2.0.0",

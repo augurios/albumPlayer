@@ -20,22 +20,27 @@
         </v-btn>
         <v-list-item-content @click="selectTrack(track)" @dblclick="playTrack(index, track)">
           <v-list-item-title>
-            <img v-if="track.cover" :src="`data:${track.tags.picture.format};base64,${track.cover}`" />
+            <img
+              v-if="track.cover"
+              :src="`data:${track.tags.picture.format};base64,${track.cover}`"
+            />
             <img src="/images/icon_placerholder.png" v-else />
-            <span
-              v-if="track.tags"
-            >{{ index | numbers }} {{ track.tags.title }} - {{ track.tags.artist }}</span>
+            <span v-if="track.tags.title">{{ track.tags.title }}</span>
             <span v-else>{{ index | numbers }} {{ track.title }}</span>
           </v-list-item-title>
         </v-list-item-content>
-        <!--<v-spacer></v-spacer>
-        {{ track.howl.duration() | minutes }}-->
+        <v-spacer></v-spacer>
+        <span v-if="track.tags" class="cell">{{ track.tags.artist }}</span>
+        <v-spacer></v-spacer>
+        {{ track.duration | minutes }}
       </v-list-item>
     </v-list>
   </v-card>
 </template>
 
 <script>
+import EventBus from '../event-bus';
+
 export default {
   props: {
     playlist: Array,
@@ -49,6 +54,7 @@ export default {
     },
     playTrack(index, track) {
       this.$emit('playtrack', index);
+      EventBus.$emit('playtrack', track);
       this.initiateScroll(track);
     },
     selectPlay(track, index) {
@@ -86,11 +92,7 @@ export default {
     initiateScroll(track) {
       const elem = document.getElementById(`song-item-${track.indexId}`);
       const topPos = elem.offsetTop;
-      this.scrollTo(
-        document.getElementById('playlist-panel'),
-        topPos,
-        600,
-      );
+      this.scrollTo(document.getElementById('playlist-panel'), topPos, 600);
     },
   },
   watch: {
@@ -107,6 +109,12 @@ export default {
   padding-left: 0;
   position: relative;
   overflow: hidden;
+}
+.playlist .cell {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 8px;
 }
 .playlist .v-list-item:after,
 .playlist .v-list-item:before {
@@ -130,6 +138,7 @@ export default {
 
 .playlist .v-list-item__content {
   padding: 22px 0;
+  min-width: 60%;
 }
 
 .playlist .v-list-item__content:before,

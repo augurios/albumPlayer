@@ -11,7 +11,12 @@
         :style="`background-image:url(${getImage})`"
         v-if="trackInfo.cover"
       ></div>
-      <div class="song-info-tags-labels" v-if="trackInfo.title" :class="[{centered: !playlistActive}]" @click="gototrack">
+      <div
+        class="song-info-tags-labels"
+        v-if="trackInfo.title"
+        :class="[{centered: !playlistActive}]"
+        @click="gototrack"
+      >
         <h6>Now Playing</h6>
         <h3 v-if="trackInfo.tags">
           <v-icon>mdi-artist</v-icon>
@@ -29,15 +34,36 @@
       <div class="song-info-tags-labels" v-else>
         <h5>Welcome! Select or Play a Track</h5>
       </div>
-      <div class="img-display" v-if="trackInfo.title" :class="[{centered: !playlistActive}]"  @click="gototrack">
+      <div
+        class="img-display"
+        v-if="trackInfo.title"
+        :class="[{centered: !playlistActive}]"
+        @click="gototrack"
+      >
+        <picture-input
+          v-if="uploadEnabled"
+          ref="pictureInput"
+          margin="16"
+          accept="image/jpeg, image/png"
+          button-class="btn"
+          :custom-strings="{
+        upload: '<h1>Bummer!</h1>',
+        drag: 'Drag an image or click here to browse'
+      }"
+          @change="onChange"
+        ></picture-input>
         <img :src="getImage" />
+        <v-btn text icon @click="()=>{ uploadEnabled = !uploadEnabled }" class="image-edit-btn"  v-tooltip.top="uploadEnabled ? 'Cancel' : 'Change Cover'">
+          <v-icon v-if="uploadEnabled">mdi-close</v-icon>
+          <v-icon v-else>mdi-square-edit-outline</v-icon>
+        </v-btn>
       </div>
     </div>
     <div class="song-info-switch">
-      <v-btn color="teal lighten-2" @click="toggleDetails" v-if="detailsActive" text icon>
+      <v-btn color="teal lighten-2" @click="toggleDetails" v-if="detailsActive" text icon  v-tooltip.right="'Toggle Tag Editor'">
         <v-icon>mdi-details</v-icon>
       </v-btn>
-      <v-btn color="blue-grey lighten-4" text icon @click="toggleDetails" v-else>
+      <v-btn color="blue-grey lighten-4" text icon @click="toggleDetails" v-else  v-tooltip.right="'Toggle Tag Editor'">
         <v-icon>mdi-details</v-icon>
       </v-btn>
     </div>
@@ -51,18 +77,49 @@
         <v-col cols="12">
           <v-card>
             <v-card-text>
-              <p v-if="trackInfo.tags.comment">{{trackInfo.tags.comment.short_description}} {{trackInfo.tags.comment.text}}</p>
-              <p>
-                <strong>Track:</strong>
-                {{trackInfo.tags.track}}
-              </p>
-              <p>
-                <strong>Genre:</strong>
-                {{trackInfo.tags.genre}}
-              </p>
-              <div v-if="trackInfo.extendedTags">
-                <h6>MetaTags</h6>
-                <v-treeview :items="getExtendedTags"></v-treeview>
+              <div>
+                <h5>Meta Tags Editor</h5>
+                <v-form>
+                  <v-container>
+                    <v-row>
+                      <v-col
+                        cols="12"
+                        v-for="(value, propertyName, index) in cachedTrack.tags"
+                        :key="index"
+                      >
+                        <div
+                          v-if="typeof cachedTrack.tags[propertyName] === 'object' && propertyName !== 'picture'"
+                        >
+                          <p>
+                            <strong>{{ propertyName }}</strong>
+                          </p>
+                          <v-row>
+                            <v-col
+                              cols="2"
+                              v-for="(subValue, subpropertyName, indexx)
+                              in cachedTrack.tags[propertyName]"
+                              :key="indexx"
+                            >
+                              <v-text-field
+                                v-model="cachedTrack.tags[propertyName][subpropertyName]"
+                                :label="typeof subpropertyName === 'number' ? `${propertyName} - ${indexx + 1 ? indexx : 1}` : subpropertyName"
+                                @blur="formInput"
+                                :disabled="cachedTrack.mime.type !== 'audio/mpeg'"
+                              ></v-text-field>
+                            </v-col>
+                          </v-row>
+                        </div>
+                        <v-text-field
+                          v-else-if="propertyName !== 'picture'"
+                          v-model="cachedTrack.tags[propertyName]"
+                          :label="propertyName"
+                          @blur="formInput"
+                          :disabled="cachedTrack.mime.type !== 'audio/mpeg'"
+                        ></v-text-field>
+                      </v-col>
+                    </v-row>
+                  </v-container>
+                </v-form>
               </div>
             </v-card-text>
           </v-card>
@@ -73,26 +130,27 @@
 </template>
 
 <script>
+import { remote, ipcRenderer } from 'electron';
+import PictureInput from 'vue-picture-input';
+
 export default {
+  components: {
+    PictureInput,
+  },
   props: {
     trackInfo: Object,
     playlistActive: Boolean,
+    selectedTrack: Object,
   },
   data() {
     return {
       detailsActive: false,
+      cachedTrack: {},
+      cachedImage: null,
+      uploadEnabled: false,
     };
   },
   methods: {
-    arrayBufferToBase64(buffer) {
-      let binary = '';
-      const bytes = new Uint8Array(buffer);
-      const len = bytes.byteLength;
-      for (let i = 0; i < len; i += 1) {
-        binary += String.fromCharCode(bytes[i]);
-      }
-      return window.btoa(binary);
-    },
     toggleDetails() {
       this.detailsActive = !this.detailsActive;
     },
@@ -103,13 +161,65 @@ export default {
     gototrack() {
       this.$emit('gototrack', this.trackInfo);
     },
+    writeNewTags(tags, cid) {
+      return new Promise((resolve) => {
+        ipcRenderer.send('writeFileRequest', tags, cid);
+        ipcRenderer.once(`writeFileResponse-${cid}`, (event, result) => {
+          resolve(result);
+        });
+      });
+    },
+    formInput(input, format) {
+      const newTrack = { ...this.cachedTrack };
+      if (this.cachedImage && newTrack.tags.picture) {
+        newTrack.tags.picture[0].data = this.cachedImage;
+        newTrack.tags.picture[0].format = format;
+      } else if (this.cachedImage) {
+        newTrack.tags.picture = [
+          {
+            data: this.cachedImage,
+            format,
+            description: '',
+          },
+        ];
+      } else if (!this.cachedImage && !newTrack.tags.picture) {
+        newTrack.tags.picture = [
+          {
+            data: this.cachedImage,
+            format,
+            description: '',
+          },
+        ];
+      }
+      this.writeNewTags(newTrack, this.cachedTrack.indexId).then(() => {
+        this.cachedImage = null;
+      });
+    },
+    onChange(image) {
+      if (image) {
+        const imageData = image.split(',');
+        this.cachedImage = Buffer.from(imageData[1], 'base64');
+        this.cachedTrack.cover = this.arrayBufferToBase64(this.cachedImage);
+        this.formInput(true, imageData[0]);
+        this.uploadEnabled = false;
+      } else {
+        this.uploadEnabled = false;
+        console.log('FileReader API not supported: use the <form>, Luke!');
+      }
+    },
+    arrayBufferToBase64(buffer) {
+      let binary = '';
+      const bytes = new Uint8Array(buffer);
+      const len = bytes.byteLength;
+      for (let i = 0; i < len; i += 1) {
+        binary += String.fromCharCode(bytes[i]);
+      }
+      return window.btoa(binary);
+    },
   },
   computed: {
     getImage() {
-      if (
-        this.trackInfo
-        && this.trackInfo.cover
-      ) {
+      if (this.trackInfo && this.trackInfo.cover) {
         return `data:${this.trackInfo.tags.picture.format};base64,${this.trackInfo.cover}`;
       }
       return `${window.location.origin}/images/logo.png`;
@@ -136,9 +246,43 @@ export default {
       return [];
     },
   },
+  watch: {
+    selectedTrack(newTrack) {
+      this.cachedTrack = newTrack;
+      console.log('new', this.cachedTrack);
+    },
+  },
 };
 </script>
 <style lang="scss">
+.image-edit-btn {
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  margin-left: -18px;
+  z-index: 10;
+  background: #66666624;
+  transition: all 0.4s ease;
+  &:hover {
+    background: #6666668a;
+  }
+}
+#picture-input {
+  position: absolute;
+  height: 100%;
+  z-index: 8;
+  > div {
+    height: 100%;
+  }
+  .preview-container {
+    max-height: 100% !important;
+    height: 100% !important;
+  }
+
+  .picture-inner-text {
+    color: #333;
+  }
+}
 .song-info {
   height: 100%;
   &-tags {
@@ -205,8 +349,8 @@ export default {
       @media (min-width: 991px) {
         width: 48%;
         &.centered {
-              transform: translateX(50%);
-                  width: 50%;
+          transform: translateX(50%);
+          width: 50%;
         }
       }
     }
@@ -218,7 +362,6 @@ export default {
       margin-left: calc(-50% + 21px);
       text-align: center;
       height: calc(100% - 473px);
-      line-height: 0;
       transform: translateX(0%);
       transition: transform 0.3s ease;
       @media (min-width: 991px) {
@@ -226,7 +369,7 @@ export default {
         left: 15px;
         margin-left: 0;
         &.centered {
-              transform: translateX(calc(50% - 7px));
+          transform: translateX(calc(50% - 7px));
         }
       }
       img {
@@ -245,5 +388,6 @@ export default {
   bottom: 218px;
   z-index: 10;
   left: 0;
+  width: 320px;
 }
 </style>

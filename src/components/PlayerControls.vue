@@ -124,6 +124,7 @@
 <script>
 import WaveSurfer from 'wavesurfer.js';
 import { remote, ipcRenderer } from 'electron';
+import EventBus from '../event-bus';
 
 const electronFs = remote.require('fs');
 
@@ -242,6 +243,7 @@ export default {
       eventDir[arg]();
     });
 
+    // wavesufer listeners
     if (!this.wavesurfer) {
       this.createWaveSurfer();
       if (this.track) {
@@ -275,6 +277,17 @@ export default {
         this.initial = false;
       });
     }
+
+    // event bus events
+
+    EventBus.$on('playtrack', (track) => {
+      this.dirty = true;
+      this.initial = false;
+      this.loadTrack(track);
+    });
+    EventBus.$on('clearTrack', () => {
+      this.clearTrack();
+    });
   },
   beforeDestroy() {
     this.wavesurfer.destroy();
@@ -320,13 +333,15 @@ export default {
           this.loadTrack(this.track);
         }
         this.$emit('playtrack', this.track.indexFlag);
-        this.$emit('selecttrack', this.currentFile);
+        this.$emit('selecttrack', this.track);
       }
       this.dirty = true;
       this.wavesurfer.playPause();
     },
     clearTrack() {
       this.wavesurfer.empty();
+      this.dirty = false;
+      this.initial = true;
       this.currentFile = {
         title: '',
       };
@@ -336,6 +351,7 @@ export default {
     },
     skipTrack(direction) {
       this.dirty = true;
+      this.initial = false;
       this.$emit('skiptrack', direction);
     },
     rewind() {
@@ -389,28 +405,21 @@ export default {
   },
   watch: {
     track(newTrack) {
-      console.log('track', newTrack);
+      console.log('track', newTrack, this.dirty);
       if (newTrack && this.initial) {
         this.initial = false;
-      } else if (newTrack && !this.dirty) {
+      } else if (newTrack && this.dirty) {
         this.loadTrack(newTrack);
         this.dirty = true;
-      } else if (newTrack !== this.currentFile && this.dirty) {
-        this.loadTrack(newTrack);
       } else {
         this.dirty = false;
         this.initial = true;
       }
     },
     playing(playOn) {
-      if (playOn && !this.dirty && this.track && !this.isPlaying) {
-        this.dirty = true;
-        this.loadTrack(this.track);
-      } else if (!playOn && !this.track) {
+      if (!playOn && !this.track) {
         this.dirty = false;
         this.initial = true;
-      } else if (playOn && this.dirty && this.track && !this.isPlaying) {
-        this.loadTrack(this.track);
       }
     },
     isPlaying() {

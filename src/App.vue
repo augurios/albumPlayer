@@ -57,6 +57,7 @@
       <PlayerInfoPanel
         :trackInfo="getTrackInfo"
         :playlistActive="playlistActive"
+        :selectedTrack="selectedTrack"
         @openPlaylist="openPlaylist"
         @gototrack="gototrack"
       />
@@ -85,8 +86,6 @@
       <div class="player-holder">
         <PlayerControls
           :track="currentTrack"
-          :selectedTrack="selectedTrack"
-          :loop="loop"
           :shuffle="shuffle"
           :playing="playing"
           @playtrack="play"
@@ -113,6 +112,7 @@
 <script>
 import { remote, ipcRenderer } from 'electron';
 import { mapState, mapActions } from 'vuex';
+import EventBus from './event-bus';
 import PlayerTitleBar from './components/ToolBar.vue';
 import PlayerPlaylistPanel from './components/PlayerPlaylistPanel.vue';
 import PlayerControls from './components/PlayerControls.vue';
@@ -230,12 +230,15 @@ export default {
               idNum += file[i].charCodeAt(0);
             }
             this.callForTags(this.loadDir + file, idNum += index).then((result) => {
+              // console.log('read song', result);
+              const { duration } = result.format;
               const fileObj = {
                 title: file,
                 path: this.loadDir + file,
                 display: true,
-                indexId: idNum += index,
+                indexId: `${duration}-${idNum += index}`,
                 index,
+                duration,
                 mime: this.supportedFormats[fileFormat],
                 tags: result.common,
                 cover: result.common.picture
@@ -265,6 +268,7 @@ export default {
       }
     },
     selectTrack(track) {
+      console.log('selecting track', track);
       this.selectedTrack = track;
     },
     play(index) {
@@ -344,6 +348,7 @@ export default {
     },
     reloadPlaylist(newPath) {
       this.playing = false;
+      EventBus.$emit('clearTrack');
       console.log('new path', newPath);
       this.setLoadDir(`${newPath[0]}/`);
       this.resetPlaylist();
