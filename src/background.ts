@@ -9,10 +9,15 @@ import {
   installVueDevtools,
 } from 'vue-cli-plugin-electron-builder/lib';
 import * as mm from 'music-metadata';
+import WaveFile from 'wavefile';
+import tagsDictionary from './components/main/tagsWavDictionary';
 const Menu = require('electron-create-menu');
 const { autoUpdater } = require("electron-updater")
 const { ipcMain } = require('electron');
-const NodeID3 = require('node-id3')
+const NodeID3 = require('node-id3');
+const fs = require("fs");
+
+
 
 const isDevelopment = process.env.NODE_ENV !== 'production';
 
@@ -115,14 +120,25 @@ app.on('ready', () => {
     //   console.error('Vue Devtools failed to install:', e.toString());
     // }
   }
+  const jsUcfirst = (string: any) => {
+    return string.charAt(0).toUpperCase() + string.slice(1);
+  }
 
   ipcMain.on('readFileRequest', (event, arg, cid) => {
+    const getWavTags = (path: any, errorM: any) => {
+      fs.readFile(path, function (err: any, data: any) {
+        const wavFile = new WaveFile(data);
+        event.sender.send(`readFileResponse-${cid}`,  wavFile.listTags());
+      })
+    };
+    
     mm.parseFile(arg, { native: true })
       .then(metadata => {
-        event.sender.send(`readFileResponse-${cid}`, metadata)
+          event.sender.send(`readFileResponse-${cid}`, metadata)
       })
       .catch(err => {
         console.error(err.message);
+        getWavTags(arg, err.message);
       });
   })
 
@@ -137,12 +153,54 @@ app.on('ready', () => {
       description: track.tags.picture[0].description,
       imageBuffer: track.tags.picture[0].data,
     };
-      
-      NodeID3.write(track.tags, track.path, (err: any, buffer: any) => { 
-        if (err) console.log('error wrinting tags', err);
-        event.sender.send(`writeFileResponse-${cid}`, buffer);
-       }) 
+
+    NodeID3.write(track.tags, track.path, (err: any, buffer: any) => {
+      if (err) console.log('error wrinting tags', err);
+      event.sender.send(`writeFileResponse-${cid}`, buffer);
+    })
   })
+
+  ipcMain.on('writeFileRequestWav', (event, track, cid) => {
+    const newTrack = { ...track }
+    newTrack.tags.image = {
+      mime: track.tags.picture[0].format,
+      type: {
+        id: 3,
+        name: 'front cover',
+      },
+      description: track.tags.picture[0].description,
+      imageBuffer: track.tags.picture[0].data,
+    };
+
+    fs.readFile(newTrack.path, function (err: any, data: any) {
+      if (err) event.sender.send(`writeFileResponseWav-${cid}`, err);;
+      let buffer = data;
+      let wav = new WaveFile(buffer);
+      const tagsName = Object.keys(newTrack.tags);
+      tagsName.forEach((tag) => {
+        if (tagsDictionary[jsUcfirst(tag)]) {
+          if (Array.isArray(newTrack.tags[tag])) {
+            wav.setTag(tagsDictionary[jsUcfirst(tag)], newTrack.tags[tag][0]);
+          } else {
+            wav.setTag(tagsDictionary[jsUcfirst(tag)], newTrack.tags[tag]);
+          }
+
+        }
+      });
+      if (newTrack.tags.album) {
+        wav.setTag('IPRD', newTrack.tags.album);
+      }
+      let newBuffer;
+
+      newBuffer = wav.toBuffer()
+
+      fs.writeFile(newTrack.path, newBuffer, (err: any) => {
+        if (err) throw err;
+        event.sender.send(`writeFileResponseWav-${cid}`, 'The file has been saved!');
+        console.log('The file has been saved!');
+      });
+    });
+  });
 
 
   globalShortcut.register('MediaPlayPause', () => {

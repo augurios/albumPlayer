@@ -11,6 +11,7 @@
         {even: index % 2 == 0}]"
         :id="`song-item-${track.indexId}`"
         v-ripple
+         @click="selectTrack(track)" @dblclick="playTrack(index, track)"
       >
         <v-btn color="teal lighten-2" @click="selectPlay(track,index)" v-if="!currentMark(track)">
           <v-icon large>mdi-play</v-icon>
@@ -18,7 +19,7 @@
         <v-btn text class="playing-btn" v-else>
           <v-icon large>mdi-speaker-wireless</v-icon>
         </v-btn>
-        <v-list-item-content @click="selectTrack(track)" @dblclick="playTrack(index, track)">
+        <v-list-item-content>
           <v-list-item-title>
             <img
               v-if="track.cover"

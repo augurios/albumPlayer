@@ -58,6 +58,7 @@
         :trackInfo="getTrackInfo"
         :playlistActive="playlistActive"
         :selectedTrack="selectedTrack"
+        :currentTrack="currentTrack"
         @openPlaylist="openPlaylist"
         @gototrack="gototrack"
         @addTag="addNewTag"
@@ -181,7 +182,6 @@ export default {
   },
   mounted() {
     ipcRenderer.on('message', (event, arg) => {
-      this.checkingCloud = '..';
       if (arg === 'Update downloaded') this.downloadReady = true;
       if (arg === 'Update available.') this.downloadAvail = true;
       if (arg === 'Checking for update...') this.checkingCloud = '...';
@@ -235,20 +235,35 @@ export default {
             }
             this.callForTags(this.loadDir + file, `${file}-${idNum += index}`).then((result) => {
               // console.log('read song', result);
-              const { duration } = result.format;
-              const fileObj = {
-                title: file,
-                path: this.loadDir + file,
-                display: true,
-                indexId: `${duration}-${idNum += index}`,
-                index,
-                duration,
-                mime: this.supportedFormats[fileFormat],
-                tags: result.common,
-                cover: result.common.picture
-                  ? this.arrayBufferToBase64(result.common.picture[0].data) : null,
-              };
-              this.playlist.push(fileObj);
+              if (result.format && result.format !== 'WAVE') {
+                const { duration } = result.format;
+                const fileObj = {
+                  title: file,
+                  path: this.loadDir + file,
+                  display: true,
+                  indexId: `${duration}-${idNum += index}`,
+                  index,
+                  duration,
+                  mime: this.supportedFormats[fileFormat],
+                  tags: result.common,
+                  cover: result.common.picture
+                    ? this.arrayBufferToBase64(result.common.picture[0].data) : null,
+                };
+                this.playlist.push(fileObj);
+              } else {
+                this.playlist.push({
+                  title: file,
+                  indexId: `${idNum += index}-${idNum += index}`,
+                  tags: {
+                    title: file,
+                    artist: 'Tag Errors',
+                  },
+                  index,
+                  display: true,
+                  path: this.loadDir + file,
+                  mime: this.supportedFormats[fileFormat],
+                });
+              }
               this.loaderStep();
             });
           } else {

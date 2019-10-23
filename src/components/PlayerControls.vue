@@ -300,6 +300,7 @@ export default {
       this.wavesurfer = WaveSurfer.create({
         container: '#waveform',
         barWidth: 4,
+        normalize: true,
       });
     },
     createEq() {

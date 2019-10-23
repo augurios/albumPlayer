@@ -17,7 +17,8 @@
         :class="[{centered: !playlistActive}]"
         @click="gototrack"
       >
-        <h6>Now Playing</h6>
+        <h6 v-if="selectedTrack === currentTrack">Now Playing</h6>
+         <h6 v-else>Selected Track</h6>
         <h3 v-if="trackInfo.tags">
           <v-icon>mdi-artist</v-icon>
           {{ trackInfo.artist }}
@@ -132,7 +133,7 @@
                                 v-model="cachedTrack.tags[propertyName][subpropertyName]"
                                 :label="typeof subpropertyName === 'number' ? `${propertyName} - ${indexx + 1 ? indexx : 1}` : subpropertyName"
                                 @blur="formInput"
-                                :disabled="cachedTrack.mime.type !== 'audio/mpeg'"
+                                :disabled="cachedTrack.mime.type !== 'audio/mpeg' || writingToFile"
                               ></v-text-field>
                             </v-col>
                           </v-row>
@@ -142,13 +143,13 @@
                           v-model="cachedTrack.tags[propertyName]"
                           :label="propertyName"
                           @blur="formInput"
-                          :disabled="cachedTrack.mime.type !== 'audio/mpeg'"
+                          :disabled="cachedTrack.mime.type !== 'audio/mpeg' || writingToFile"
                         ></v-text-field>
 
                       </v-col>
                     </v-row>
                   </v-container>
-                    <v-select :items="tagOptions" label="Add New Tag" @change="addNewTag" prepend-icon="mdi-file-document-box-plus-outline"></v-select>
+                    <v-select :items="tagOptions" label="Add New Tag" @change="addNewTag" prepend-icon="mdi-file-document-box-plus-outline" :disabled="cachedTrack.mime.type !== 'audio/mpeg' || writingToFile"></v-select>
                 </v-form>
               </div>
             </v-card-text>
@@ -173,6 +174,7 @@ export default {
     trackInfo: Object,
     playlistActive: Boolean,
     selectedTrack: Object,
+    currentTrack: Object,
   },
   data() {
     return {
@@ -182,6 +184,7 @@ export default {
       uploadEnabled: false,
       loadingImg: false,
       tagOptions: Object.keys(tagsDictionary),
+      writingToFile: false,
     };
   },
   methods: {
@@ -216,9 +219,17 @@ export default {
       }
     },
     writeNewTags(tags, cid) {
+      if (this.cachedTrack.mime.type === 'audio/mpeg') {
+        return new Promise((resolve) => {
+          ipcRenderer.send('writeFileRequest', tags, cid);
+          ipcRenderer.once(`writeFileResponse-${cid}`, (event, result) => {
+            resolve(result);
+          });
+        });
+      }
       return new Promise((resolve) => {
-        ipcRenderer.send('writeFileRequest', tags, cid);
-        ipcRenderer.once(`writeFileResponse-${cid}`, (event, result) => {
+        ipcRenderer.send('writeFileRequestWav', tags, cid);
+        ipcRenderer.once(`writeFileResponseWav-${cid}`, (event, result) => {
           resolve(result);
         });
       });
@@ -245,8 +256,11 @@ export default {
           },
         ];
       }
-      this.writeNewTags(newTrack, this.cachedTrack.indexId).then(() => {
+      this.writingToFile = true;
+      this.writeNewTags(newTrack, this.cachedTrack.indexId).then((result) => {
+        console.log('from write', result);
         this.cachedImage = null;
+        this.writingToFile = false;
       });
     },
     onChange(image) {
@@ -390,15 +404,15 @@ export default {
       opacity: 0.6;
     }
     &-details {
-      padding: 15px;
+      padding: 0 15px;
       position: absolute;
-      top: 192px;
+      top: 207px;
       z-index: 0;
       width: 100%;
       right: -100vw;
       transition: all 0.3s ease;
       transform: translateX(0);
-      height: calc(100vh - 269px);
+      height: calc(100vh - 292px);
       overflow: auto;
       &.active {
         transform: translateX(-100vw);
@@ -461,7 +475,7 @@ export default {
         z-index: 100;
       }
       @media (min-width: 991px) {
-        width: 50vw;
+        width: 48vw;
         left: 15px;
         margin-left: 0;
         &.centered {

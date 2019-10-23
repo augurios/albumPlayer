@@ -16,4 +16,3 @@ export default {
   opus: { type: 'audio/ogg' },
   flac: { type: 'audio/flac' },
 };
-
