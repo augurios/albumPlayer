@@ -3,7 +3,7 @@
     <v-card>
       <v-card-title class="headline">
         Welcome To
-        <span class="amber--text text--darken-3 ml-1 mr-1">IMP101</span>
+        <span class="amber--text text--darken-3 ml-1 mr-1">IMP101 {{version}}</span>
         <small>
           <em>Alpha</em>
         </small>
@@ -31,13 +31,15 @@
           <a href="https://electronjs.org/" target="_blank">VueJs</a> by
           <a href="https://github.com/augurios" target="_blank">Augurios</a>.
         </p>
+        <h4>On New Version</h4>
+        <ul>
+          <li>Dramatically improved initial list loading time</li>
+          <li>Id3 editor for MP3 files (working on support for other formats).</li>
+        </ul>
         <h4>Planned Fatures</h4>
         <ul>
           <li>A proper MiniMode</li>
           <li>Playlist tools</li>
-          <li>ID3 tag Editor</li>
-          <li>Playlist Manager</li>
-          <li>Remote Control</li>
           <li>Integration with IoT</li>
           <li>Other stuff i probably forgot</li>
           <li>i dont know, want anything???</li>
@@ -61,6 +63,9 @@
 import { mapState, mapActions } from 'vuex';
 
 export default {
+  props: {
+    version: String,
+  },
   computed: {
     ...mapState(['isFirstTime']),
   },

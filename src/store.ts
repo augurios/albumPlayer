@@ -15,6 +15,7 @@ export default new Vuex.Store({
     isFullScreen: false,
     isMiniMode: false,
     loadDir: '',
+    version: 0,
   },
   mutations: {
     setFullscreen(state:any, value) {
@@ -29,6 +30,9 @@ export default new Vuex.Store({
     setFirstTime(state, value) {
       state.isFirstTime = value;
     },
+    setVersion(state, value) {
+      state.version = value;
+    },
   },
   actions: {
     setFullscreen(context, value) {
@@ -42,6 +46,9 @@ export default new Vuex.Store({
     },
     setFirstTime(context, value) {
       context.commit('setFirstTime', value);
+    },
+    setVersion(context, value) {
+      context.commit('setVersion', value);
     },
   },
   plugins: [vuexPersist.plugin],

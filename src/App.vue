@@ -49,7 +49,7 @@
               >
                 <strong>{{ getLoadPercent | percent }}</strong>
               </v-progress-circular>
-              <h5 class="text-center grey--text mt-2">Analyzing Files</h5>
+              <h5 class="text-center grey--text mt-2">Analyzing Files{{ checkingCloud }}</h5>
             </v-col>
           </v-row>
         </v-layout>
@@ -60,6 +60,7 @@
         :selectedTrack="selectedTrack"
         @openPlaylist="openPlaylist"
         @gototrack="gototrack"
+        @addTag="addNewTag"
       />
       <div class="playlist-switch">
         <v-btn
@@ -105,7 +106,10 @@
               remote.app.quit();
         }">Restart</v-btn>
     </v-snackbar>
-    <WelcomeModal />
+    <v-snackbar v-model="downloadAvail" color="green">
+      An update is available, will download on the background.
+    </v-snackbar>
+    <WelcomeModal :version="localVersion"/>
   </v-app>
 </template>
 
@@ -120,6 +124,7 @@ import PlayerInfoPanel from './components/PlayerInfoPanel.vue';
 import PlayerSearchBar from './components/PlayerSearchBar.vue';
 import WelcomeModal from './components/WelcomeModal.vue';
 import jsmediatags from './plugins/jsmediatags';
+import supportedFormats from './components/main/supportedFormats';
 
 const initialState = () => ({
   dataLoaded: false,
@@ -147,29 +152,15 @@ export default {
     ...initialState(),
     initializing: true,
     playlistActive: true,
-    supportedFormats: {
-      au: { type: 'audio/basic' },
-      snd: { type: 'audio/basic' },
-      pmc: { type: 'auido/L24' },
-      mp3: { type: 'audio/mpeg' },
-      mp4: { type: 'audio/mp4' },
-      aif: { type: 'audio/x-aiff' },
-      aifc: { type: 'audio/x-aiff' },
-      aiff: { type: 'audio/x-aiff' },
-      m3u: { type: 'audio/x-mpegurl' },
-      ra: { type: 'audio/vnd.rn-realaudio' },
-      ram: { type: 'audio/vnd.rn-realaudio' },
-      Ogg: { type: 'audio/ogg' },
-      vorbis: { type: 'audio/vorbis' },
-      wav: { type: 'audio/vnd.wav' },
-      opus: { type: 'audio/ogg' },
-      flac: { type: 'audio/flac' },
-    },
+    supportedFormats: { ...supportedFormats },
     selectedTrack: null,
     loop: false,
     shuffle: false,
     seek: 0,
     downloadReady: false,
+    downloadAvail: false,
+    localVersion: 0,
+    checkingCloud: '.',
   }),
   created() {
     if (!this.loadDir) {
@@ -178,11 +169,22 @@ export default {
       console.log('before', pathToAsset);
       this.setLoadDir(pathToAsset);
     }
+    this.localVersion = remote.app.getVersion();
+    if (this.version && this.version < this.localVersion) {
+      this.setFirstTime(true);
+      this.setVersion(this.localVersion);
+    } else if (!this.version) {
+      this.setFirstTime(true);
+      this.setVersion(this.localVersion);
+    }
     this.scanDirectory();
   },
   mounted() {
     ipcRenderer.on('message', (event, arg) => {
+      this.checkingCloud = '..';
       if (arg === 'Update downloaded') this.downloadReady = true;
+      if (arg === 'Update available.') this.downloadAvail = true;
+      if (arg === 'Checking for update...') this.checkingCloud = '...';
     });
     this.$mousetrap.bind(
       'p',
@@ -195,6 +197,8 @@ export default {
   methods: {
     ...mapActions({
       setLoadDir: 'setLoadDir',
+      setVersion: 'setVersion',
+      setFirstTime: 'setFirstTime',
     }),
     callForTags(args, cid) {
       return new Promise((resolve) => {
@@ -223,13 +227,13 @@ export default {
           if (
             this.supportedFormats[fileFormat]
             && file.charAt(0) !== '.'
-            && this.playlist.length < 501
+            && index < 999
           ) {
             let idNum = 0;
             for (let i = 0, len = file.length; i < len; i += 1) {
               idNum += file[i].charCodeAt(0);
             }
-            this.callForTags(this.loadDir + file, idNum += index).then((result) => {
+            this.callForTags(this.loadDir + file, `${file}-${idNum += index}`).then((result) => {
               // console.log('read song', result);
               const { duration } = result.format;
               const fileObj = {
@@ -264,7 +268,7 @@ export default {
             this.listLoaded = true;
             this.playListReady = true;
           }
-        }, 700);
+        }, 500);
       }
     },
     selectTrack(track) {
@@ -366,9 +370,12 @@ export default {
     gototrack(track) {
       this.$refs.playListComponent.initiateScroll(track);
     },
+    addNewTag(newTrack) {
+      this.selectedTrack = newTrack;
+    },
   },
   computed: {
-    ...mapState(['loadDir']),
+    ...mapState(['loadDir', 'version', 'isFirstTime']),
     currentTrack() {
       const newCur = this.playlist[this.index];
       if (newCur) {

@@ -138,7 +138,7 @@ app.on('ready', () => {
       imageBuffer: track.tags.picture[0].data,
     };
       
-      NodeID3.write(track.tags, track.path, function(err, buffer) { 
+      NodeID3.write(track.tags, track.path, (err: any, buffer: any) => { 
         if (err) console.log('error wrinting tags', err);
         event.sender.send(`writeFileResponse-${cid}`, buffer);
        }) 

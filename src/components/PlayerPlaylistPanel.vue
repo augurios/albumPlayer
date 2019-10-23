@@ -197,7 +197,8 @@ export default {
 }
 
 .playlist .v-list-item:hover .v-btn,
-.playlist .v-list-item .playing-btn {
+.playlist .v-list-item .playing-btn,
+.playlist .v-list-item .v-btn:focus {
   opacity: 1;
   transform: translateX(0px);
 }
